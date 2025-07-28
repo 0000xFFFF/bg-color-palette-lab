@@ -19,25 +19,21 @@ struct ValidationResult {
 };
 
 class ThreadSafeQueue {
-  private:
-    std::queue<std::string> queue_;
-    mutable std::mutex mutex_;
-    std::condition_variable condition_;
 
   public:
     void push(const std::string& item)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        queue_.push(item);
-        condition_.notify_one();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_queue.push(item);
+        m_condition.notify_one();
     }
 
     bool pop(std::string& item, std::chrono::milliseconds timeout = std::chrono::milliseconds(100))
     {
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (condition_.wait_for(lock, timeout, [this] { return !queue_.empty(); })) {
-            item = queue_.front();
-            queue_.pop();
+        std::unique_lock<std::mutex> lock(m_mutex);
+        if (m_condition.wait_for(lock, timeout, [this] { return !m_queue.empty(); })) {
+            item = m_queue.front();
+            m_queue.pop();
             return true;
         }
         return false;
@@ -45,37 +41,42 @@ class ThreadSafeQueue {
 
     bool empty() const
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return queue_.empty();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_queue.empty();
     }
 
     size_t size() const
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return queue_.size();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_queue.size();
     }
+
+  private:
+    std::queue<std::string> m_queue;
+    mutable std::mutex m_mutex;
+    std::condition_variable m_condition;
 };
 
 class ImageValidator {
   private:
-    std::vector<std::string> supportedExtensions = {
+    std::vector<std::string> m_supportedExtensions = {
         ".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp", ".gif"};
 
-    std::vector<std::string> corruptedFiles;
-    std::vector<std::string> validFiles;
+    std::vector<ValidationResult> m_Results;
+    std::mutex m_ResultsMutex;
+    std::atomic<int> m_ProcessedCount{0};
+    std::atomic<int> m_TotalCount{0};
 
-    std::vector<ValidationResult> results;
-    std::mutex resultsMutex;
-    std::atomic<int> processedCount{0};
-    std::atomic<int> totalCount{0};
+    int m_ValidCount = 0;
+    int m_CorruptedCount = 0;
 
-    const unsigned int numThreads;
+    const unsigned int m_NumThreads;
 
     bool isSupportedFormat(const std::string& filename)
     {
         std::string extension = filename.substr(filename.find_last_of("."));
         std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        return std::find(supportedExtensions.begin(), supportedExtensions.end(), extension) != supportedExtensions.end();
+        return std::find(m_supportedExtensions.begin(), m_supportedExtensions.end(), extension) != m_supportedExtensions.end();
     }
 
     ValidationResult validateImage(const std::string& imagePath)
@@ -115,29 +116,29 @@ class ImageValidator {
 
             // Thread-safe result storage
             {
-                std::lock_guard<std::mutex> lock(resultsMutex);
-                results.push_back(result);
+                std::lock_guard<std::mutex> lock(m_ResultsMutex);
+                m_Results.push_back(result);
             }
 
-            int current = ++processedCount;
+            int current = ++m_ProcessedCount;
 
             // Thread-safe progress output (less frequent to avoid spam)
-            if (current % 10 == 0 || current == totalCount) {
-                std::cout << "\rProgress: " << current << "/" << totalCount
+            if (current % 10 == 0 || current == m_TotalCount) {
+                std::cout << "\rProgress: " << current << "/" << m_TotalCount
                           << " images processed ("
                           << std::fixed << std::setprecision(1)
-                          << (100.0 * current / totalCount) << "%)" << std::flush;
+                          << (100.0 * current / m_TotalCount) << "%)" << std::flush;
             }
         }
     }
 
   public:
-    ImageValidator() : numThreads(std::thread::hardware_concurrency())
+    ImageValidator() : m_NumThreads(std::thread::hardware_concurrency())
     {
-        std::cout << "Using " << numThreads << " threads for validation." << std::endl;
+        std::cout << "Using " << m_NumThreads << " threads for validation." << std::endl;
     }
 
-    explicit ImageValidator(unsigned int threads) : numThreads(threads)
+    explicit ImageValidator(unsigned int threads) : m_NumThreads(threads)
     {
         std::cout << "Using " << threads << " threads for validation." << std::endl;
     }
@@ -162,10 +163,10 @@ class ImageValidator {
             return;
         }
 
-        totalCount = imageFiles.size();
-        std::cout << "Found " << totalCount << " image files to validate." << std::endl;
+        m_TotalCount = imageFiles.size();
+        std::cout << "Found " << m_TotalCount << " image files to validate." << std::endl;
 
-        if (totalCount == 0) {
+        if (m_TotalCount == 0) {
             std::cout << "No images found to validate." << std::endl;
             return;
         }
@@ -178,11 +179,11 @@ class ImageValidator {
 
         // Start worker threads
         std::vector<std::thread> workers;
-        workers.reserve(numThreads);
+        workers.reserve(m_NumThreads);
 
         auto startTime = std::chrono::high_resolution_clock::now();
 
-        for (unsigned int i = 0; i < numThreads; ++i) {
+        for (unsigned int i = 0; i < m_NumThreads; ++i) {
             workers.emplace_back(&ImageValidator::workerThread, this, std::ref(workQueue));
         }
 
@@ -196,31 +197,28 @@ class ImageValidator {
 
         std::cout << "\nValidation completed in " << duration.count() << "ms" << std::endl;
         std::cout << "Average: " << std::fixed << std::setprecision(2)
-                  << (double)duration.count() / totalCount << "ms per image" << std::endl;
+                  << (double)duration.count() / m_TotalCount << "ms per image" << std::endl;
     }
 
-    void printSummary()
+    void calcAndPrintSummary()
     {
-        int validCount = 0;
-        int corruptedCount = 0;
-
-        for (const auto& result : results) {
+        for (const auto& result : m_Results) {
             if (result.isValid) {
-                validCount++;
+                m_ValidCount++;
             }
             else {
-                corruptedCount++;
+                m_CorruptedCount++;
             }
         }
 
         std::cout << "\n=== VALIDATION SUMMARY ===" << std::endl;
-        std::cout << "Total files processed: " << results.size() << std::endl;
-        std::cout << "Valid images: " << validCount << std::endl;
-        std::cout << "Corrupted/unreadable images: " << corruptedCount << std::endl;
+        std::cout << "Total files processed: " << m_Results.size() << std::endl;
+        std::cout << "Valid images: " << m_ValidCount << std::endl;
+        std::cout << "Corrupted/unreadable images: " << m_CorruptedCount << std::endl;
 
-        if (corruptedCount > 0) {
+        if (m_CorruptedCount > 0) {
             std::cout << "\nCorrupted files:" << std::endl;
-            for (const auto& result : results) {
+            for (const auto& result : m_Results) {
                 if (!result.isValid) {
                     std::cout << "  " << result.filePath << std::endl;
                 }
@@ -228,12 +226,17 @@ class ImageValidator {
         }
     }
 
+    bool foundCorruptedFiles()
+    {
+        return m_CorruptedCount > 0;
+    }
+
     void printDetailedResults()
     {
         std::cout << "\n=== DETAILED RESULTS ===" << std::endl;
 
         // Sort results by filename for better readability
-        std::vector<ValidationResult> sortedResults = results;
+        std::vector<ValidationResult> sortedResults = m_Results;
         std::sort(sortedResults.begin(), sortedResults.end(),
                   [](const ValidationResult& a, const ValidationResult& b) {
                       return a.filename < b.filename;
@@ -254,7 +257,7 @@ class ImageValidator {
     void deleteCorruptedFiles()
     {
         std::vector<std::string> corruptedFiles;
-        for (const auto& result : results) {
+        for (const auto& result : m_Results) {
             if (!result.isValid) {
                 corruptedFiles.push_back(result.filePath);
             }
@@ -299,7 +302,7 @@ class ImageValidator {
     void moveCorruptedFiles(const std::string& quarantineFolder = "corrupted_images")
     {
         std::vector<std::string> corruptedFiles;
-        for (const auto& result : results) {
+        for (const auto& result : m_Results) {
             if (!result.isValid) {
                 corruptedFiles.push_back(result.filePath);
             }
@@ -365,31 +368,34 @@ int main(int argc, char* argv[])
     validator.scanFolder(inputFolder);
 
     // Show summary
-    validator.printSummary();
+    validator.calcAndPrintSummary();
 
-    // Ask user what to do with corrupted files
-    std::cout << "\nWhat would you like to do with corrupted files?" << std::endl;
-    std::cout << "1. Delete them permanently" << std::endl;
-    std::cout << "2. Move them to 'corrupted_images' folder" << std::endl;
-    std::cout << "3. Do nothing" << std::endl;
-    std::cout << "Choice (1/2/3): ";
+    if (validator.foundCorruptedFiles()) {
 
-    int choice;
-    std::cin >> choice;
+        // Ask user what to do with corrupted files
+        std::cout << "\nWhat would you like to do with corrupted files?" << std::endl;
+        std::cout << "1. Delete them permanently" << std::endl;
+        std::cout << "2. Move them to 'corrupted_images' folder" << std::endl;
+        std::cout << "3. Do nothing" << std::endl;
+        std::cout << "Choice (1/2/3): ";
 
-    switch (choice) {
-        case 1:
-            validator.deleteCorruptedFiles();
-            break;
-        case 2:
-            validator.moveCorruptedFiles();
-            break;
-        case 3:
-            std::cout << "No action taken. Check 'corrupted_images.txt' for the list." << std::endl;
-            break;
-        default:
-            std::cout << "Invalid choice. No action taken." << std::endl;
-            break;
+        int choice;
+        std::cin >> choice;
+
+        switch (choice) {
+            case 1:
+                validator.deleteCorruptedFiles();
+                break;
+            case 2:
+                validator.moveCorruptedFiles();
+                break;
+            case 3:
+                std::cout << "No action taken." << std::endl;
+                break;
+            default:
+                std::cout << "Invalid choice. No action taken." << std::endl;
+                break;
+        }
     }
 
     return 0;
