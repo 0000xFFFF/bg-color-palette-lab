@@ -158,6 +158,7 @@ class ImageValidator {
         }
         catch (const fs::filesystem_error& ex) {
             std::cerr << "Error scanning folder: " << ex.what() << std::endl;
+            exit(1);
             return;
         }
 
