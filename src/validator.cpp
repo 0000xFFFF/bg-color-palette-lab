@@ -370,7 +370,7 @@ int main(int argc, char* argv[])
     std::cout << "\nWhat would you like to do with corrupted files?" << std::endl;
     std::cout << "1. Delete them permanently" << std::endl;
     std::cout << "2. Move them to 'corrupted_images' folder" << std::endl;
-    std::cout << "3. Do nothing (just keep the report)" << std::endl;
+    std::cout << "3. Do nothing" << std::endl;
     std::cout << "Choice (1/2/3): ";
 
     int choice;
