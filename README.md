@@ -22,7 +22,7 @@ sudo make install
 # Show most dominant colors in image and make a color palette.
 ./bgcpl-palette <file.png/jpg/...>
 
-# Group images by color groups below.
+# Group images by color groups below. Multithreaded.
 ./bgcpl-grouper <dir>
 ```
 

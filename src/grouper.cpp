@@ -7,6 +7,8 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
+#include <thread>
+#include <mutex>
 
 namespace fs = std::filesystem;
 
@@ -210,27 +212,57 @@ class WallpaperGrouper {
 
     void processImages()
     {
-        int processed = 0;
-        int total = images.size();
+        int numThreads = std::thread::hardware_concurrency();
+        if (numThreads == 0) numThreads = 4; // Fallback in case detection fails
 
-        for (auto& imageInfo : images) {
-            std::cout << "Processing " << ++processed << "/" << total << ": " << imageInfo.filename << std::endl;
+        std::cout << "Using " << numThreads << " threads for processing." << std::endl;
 
-            cv::Mat image = cv::imread(imageInfo.path);
-            if (image.empty()) {
-                std::cerr << "Could not load: " << imageInfo.path << std::endl;
-                continue;
+        std::vector<std::thread> threads;
+        std::mutex coutMutex;
+
+        auto processChunk = [this, &coutMutex](int start, int end, int threadId) {
+            for (int i = start; i < end; ++i) {
+                auto& imageInfo = images[i];
+
+                {
+                    std::lock_guard<std::mutex> lock(coutMutex);
+                    std::cout << "[Thread " << threadId << "] Processing: " << imageInfo.filename << std::endl;
+                }
+
+                cv::Mat image = cv::imread(imageInfo.path);
+                if (image.empty()) {
+                    std::lock_guard<std::mutex> lock(coutMutex);
+                    std::cerr << "[Thread " << threadId << "] Could not load: " << imageInfo.path << std::endl;
+                    continue;
+                }
+
+                if (image.cols > 800 || image.rows > 600) {
+                    double scale = std::min(800.0 / image.cols, 600.0 / image.rows);
+                    cv::resize(image, image, cv::Size(), scale, scale);
+                }
+
+                imageInfo.dominantColors = extractDominantColors(image);
+                assignImageToGroup(imageInfo);
             }
+        };
 
-            // Resize large images for faster processing
-            if (image.cols > 800 || image.rows > 600) {
-                double scale = std::min(800.0 / image.cols, 600.0 / image.rows);
-                cv::resize(image, image, cv::Size(), scale, scale);
-            }
+        int totalImages = images.size();
+        int chunkSize = (totalImages + numThreads - 1) / numThreads;
 
-            imageInfo.dominantColors = extractDominantColors(image);
-            assignImageToGroup(imageInfo);
+        for (int t = 0; t < numThreads; ++t) {
+            int start = t * chunkSize;
+            int end = std::min(start + chunkSize, totalImages);
+            if (start >= totalImages) break;
+            threads.emplace_back(processChunk, start, end, t);
         }
+
+        for (auto& thread : threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+
+        std::cout << "All threads finished processing." << std::endl;
     }
 
     void createGroupFolders(const std::string& outputPath = "grouped_wallpapers")
