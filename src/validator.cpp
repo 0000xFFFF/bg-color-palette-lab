@@ -347,9 +347,13 @@ class ImageValidator {
     }
 };
 
+
 int main(int argc, char* argv[])
 {
+    freopen("/dev/null", "w", stderr); // suppress errors
+
     std::string inputFolder = "bg";
+
 
     if (argc >= 2) {
         inputFolder = argv[1];
