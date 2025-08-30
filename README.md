@@ -43,3 +43,4 @@ sudo make install
 | Monochrome       | 0       | 360     | 0.0     | 0.15    | 0.25        | 0.8         | (128, 128, 128)               |
 | Earth_Tones      | 25      | 45      | 0.2     | 0.7     | 0.3         | 0.7         | (100, 150, 200)               |
 
+<img src="preview/preview.png">
