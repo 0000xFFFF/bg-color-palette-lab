@@ -24,6 +24,12 @@ namespace Cursor {
 
 }; // namespace Cursor
 
+enum ALGORITHM {
+    KMEANS,
+    KMEANSOPT,
+    HISTOGRAM
+};
+
 enum ACTION { NONE,
               MOVE,
               COPY };
@@ -95,7 +101,138 @@ void calculateColorProperties(ColorInfo& colorInfo)
     colorInfo.brightness = hsv[2] / 255.0;
 }
 
-std::vector<ColorInfo> extractDominantColors(const cv::Mat& image, int k = 5)
+std::vector<ColorInfo> extractDominantColorsHistogram(const cv::Mat& image, int k = 5)
+{
+    cv::Mat hsv;
+    cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
+
+    // Create histogram
+    int hbins = 36, sbins = 16, vbins = 16; // Reasonable resolution
+    int histSize[] = {hbins, sbins, vbins};
+    float hranges[] = {0, 180};
+    float sranges[] = {0, 256};
+    float vranges[] = {0, 256};
+    const float* ranges[] = {hranges, sranges, vranges};
+    int channels[] = {0, 1, 2};
+
+    cv::Mat hist;
+    cv::calcHist(&hsv, 1, channels, cv::Mat(), hist, 3, histSize, ranges);
+
+    // Find dominant colors by finding histogram peaks
+    std::vector<ColorInfo> colors;
+    std::vector<std::tuple<int, int, int, float>> peaks;
+
+    // Extract all non-zero histogram bins
+    for (int h = 0; h < hbins; h++) {
+        for (int s = 0; s < sbins; s++) {
+            for (int v = 0; v < vbins; v++) {
+                float count = hist.at<float>(h, s, v);
+                if (count > 0) {
+                    peaks.emplace_back(h, s, v, count);
+                }
+            }
+        }
+    }
+
+    // Sort by count (descending)
+    std::sort(peaks.begin(), peaks.end(),
+              [](const auto& a, const auto& b) {
+                  return std::get<3>(a) > std::get<3>(b);
+              });
+
+    // Take top k peaks
+    int totalPixels = image.rows * image.cols;
+    int numColors = std::min(k, static_cast<int>(peaks.size()));
+
+    for (int i = 0; i < numColors; i++) {
+        auto [h_idx, s_idx, v_idx, count] = peaks[i];
+
+        // Convert histogram indices back to HSV values
+        float hue = (h_idx + 0.5f) * 180.0f / hbins;
+        float sat = (s_idx + 0.5f) * 256.0f / sbins;
+        float val = (v_idx + 0.5f) * 256.0f / vbins;
+
+        // Convert HSV to BGR
+        cv::Mat hsvPixel(1, 1, CV_32FC3, cv::Scalar(hue, sat, val));
+        cv::Mat bgrPixel;
+        cv::cvtColor(hsvPixel, bgrPixel, cv::COLOR_HSV2BGR);
+
+        cv::Vec3f bgr = bgrPixel.at<cv::Vec3f>(0, 0);
+
+        ColorInfo colorInfo;
+        colorInfo.color = cv::Vec3b(
+            static_cast<uchar>(std::clamp(bgr[0], 0.0f, 255.0f)),
+            static_cast<uchar>(std::clamp(bgr[1], 0.0f, 255.0f)),
+            static_cast<uchar>(std::clamp(bgr[2], 0.0f, 255.0f)));
+        colorInfo.weight = count / totalPixels;
+        colorInfo.hue = hue * 2.0; // Convert to 0-360 range
+        colorInfo.saturation = sat / 255.0;
+        colorInfo.brightness = val / 255.0;
+
+        colors.push_back(colorInfo);
+    }
+
+    return colors;
+}
+
+std::vector<ColorInfo> extractDominantColorsKmeansOpt(const cv::Mat& image, int k = 5)
+{
+    // Reduce image size for faster processing
+    cv::Mat smallImage;
+    int maxDim = 150; // Much smaller than 800x600
+    if (image.rows > maxDim || image.cols > maxDim) {
+        double scale = std::min((double)maxDim / image.rows, (double)maxDim / image.cols);
+        cv::resize(image, smallImage, cv::Size(), scale, scale);
+    }
+    else {
+        smallImage = image;
+    }
+
+    // Direct conversion to float data without reshaping
+    int totalPixels = smallImage.rows * smallImage.cols;
+    cv::Mat data(totalPixels, 3, CV_32F);
+
+    // Manually copy pixel data to avoid reshape overhead
+    const cv::Vec3b* srcPtr = smallImage.ptr<cv::Vec3b>();
+    float* dstPtr = data.ptr<float>();
+
+    for (int i = 0; i < totalPixels; i++) {
+        dstPtr[i * 3 + 0] = srcPtr[i][0]; // B
+        dstPtr[i * 3 + 1] = srcPtr[i][1]; // G
+        dstPtr[i * 3 + 2] = srcPtr[i][2]; // R
+    }
+
+    cv::Mat labels, centers;
+    cv::kmeans(data, k, labels,
+               cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0), // Reduced iterations
+               1, cv::KMEANS_PP_CENTERS, centers);                                         // Reduced attempts
+
+    std::vector<int> counts(k, 0);
+    for (int i = 0; i < labels.rows; i++) {
+        counts[labels.at<int>(i)]++;
+    }
+
+    std::vector<ColorInfo> colors;
+
+    for (int i = 0; i < k; i++) {
+        ColorInfo colorInfo;
+        colorInfo.color = cv::Vec3b(
+            static_cast<uchar>(std::clamp(centers.at<float>(i, 0), 0.0f, 255.0f)),
+            static_cast<uchar>(std::clamp(centers.at<float>(i, 1), 0.0f, 255.0f)),
+            static_cast<uchar>(std::clamp(centers.at<float>(i, 2), 0.0f, 255.0f)));
+        colorInfo.weight = (double)counts[i] / totalPixels;
+        calculateColorProperties(colorInfo);
+        colors.push_back(colorInfo);
+    }
+
+    std::sort(colors.begin(), colors.end(),
+              [](const ColorInfo& a, const ColorInfo& b) {
+                  return a.weight > b.weight;
+              });
+
+    return colors;
+}
+std::vector<ColorInfo> extractDominantColorsKmeans(const cv::Mat& image, int k = 5)
 {
     cv::Mat data = image.reshape(1, image.rows * image.cols);
     data.convertTo(data, CV_32F);
@@ -247,11 +384,10 @@ void scanFolder(const std::string& folderPath)
     std::cout << "Found " << images.size() << " images to process." << std::endl;
 }
 
-void processImages()
+void processImages(ALGORITHM algorithm)
 {
     int numThreads = std::thread::hardware_concurrency();
     if (numThreads == 0) numThreads = 4; // Fallback in case detection fails
-    numThreads--;                        // use one thread for printing
 
     std::cout << "Using " << numThreads << " threads for processing." << std::endl;
 
@@ -266,7 +402,14 @@ void processImages()
     Cursor::termClear();
 
     std::thread printThread([&running, &processedImages, &totalImages]() {
+        std::chrono::steady_clock::time_point start_time, prev_time;
+        size_t prev_processed;
+
+        start_time = std::chrono::steady_clock::now();
+
         while (running) {
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
             {
                 std::lock_guard<std::mutex> lock(coutMutex);
@@ -275,18 +418,28 @@ void processImages()
                 for (size_t i = 0; i < colorGroups.size(); i++) {
                     std::cout << colorGroups[i].name << "\t:\t" << colorGroups[i].counter << std::endl;
                 }
-                std::cout << std::endl;
-                float p = static_cast<float>(processedImages) / static_cast<float>(totalImages);
-                std::cout << "==: " << processedImages << "/" << totalImages << "  " << std::fixed << std::setprecision(1) << p * 100 << "%" << std::endl;
-            }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                size_t current = processedImages;
+                auto now = std::chrono::steady_clock::now();
+                std::chrono::duration<double> elapsed_time = now - start_time;
+                std::chrono::duration<double> time_delta = now - prev_time;
+                double i_per_sec = (current - prev_processed) / time_delta.count();
+                prev_time = now;
+                prev_processed = current;
+
+                std::cout << std::endl;
+                float p = static_cast<float>(current) / static_cast<float>(totalImages);
+                std::cout << "==: " << current << "/" << totalImages << "  "
+                          << std::fixed << std::setprecision(1)
+                          << p * 100 << "% (" << i_per_sec << " i/s)"
+                          << "               " << std::endl;
+            }
         }
 
         std::cout << "All threads finished processing." << std::endl;
     });
 
-    auto processImageThread = [&processedImages](int start, int end, int threadId) {
+    auto processImageThread = [&processedImages, &algorithm](int start, int end, int threadId) {
         for (int i = start; i < end; ++i) {
             auto& imageInfo = images[i];
 
@@ -302,7 +455,12 @@ void processImages()
                 cv::resize(image, image, cv::Size(), scale, scale);
             }
 
-            imageInfo.dominantColors = extractDominantColors(image);
+            switch (algorithm) {
+                case KMEANS:    imageInfo.dominantColors = extractDominantColorsKmeans(image); break;
+                case KMEANSOPT: imageInfo.dominantColors = extractDominantColorsKmeansOpt(image); break;
+                case HISTOGRAM: imageInfo.dominantColors = extractDominantColorsHistogram(image); break;
+            }
+
             assignImageToGroup(imageInfo);
             processedImages++;
         }
@@ -448,39 +606,27 @@ int main(int argc, char* argv[])
 
     argparse::ArgumentParser program("dcm_master");
     program.add_description("group wallpapers by color palette");
-
     auto& options_required = program.add_group("Required");
     options_required.add_argument("-i", "--input")
         .help("input folder")
         .required();
     options_required.add_argument("-o", "--output")
         .help("output folder (if not speicifed files won't be moved/copied, must specify --copy or --move to do action)");
-
     auto& options_optional = program.add_group("Optional");
-    auto& group = options_optional.add_mutually_exclusive_group();
-    group.add_argument("-c", "--copy")
+    auto& mutex_group = options_optional.add_mutually_exclusive_group();
+    mutex_group.add_argument("-c", "--copy")
         .help("copy files to output dir")
         .default_value(false)
         .implicit_value(true);
-    group.add_argument("-m", "--move")
+    mutex_group.add_argument("-m", "--move")
         .help("move files to output dir")
         .default_value(false)
         .implicit_value(true);
-
-    ACTION action = NONE;
-
-    try {
-        program.parse_args(argc, argv);
-
-        if (program.get<bool>("copy")) { action = COPY; }
-        else if (program.get<bool>("move")) {
-            action = MOVE;
-        }
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
+    options_optional.add_argument("-a", "--algorithm")
+        .help("which algorithm to use when grouping images (KMeans = 0, KMeansOptimized = 1, Histogram = 2")
+        .metavar("0/1/2")
+        .default_value(0)
+        .scan<'i', int>();
 
     // HANDLE CTRL+C
     struct sigaction sigIntHandler;
@@ -489,27 +635,52 @@ int main(int argc, char* argv[])
     sigIntHandler.sa_flags = 0;
     sigaction(SIGINT, &sigIntHandler, NULL);
 
-    std::string inputFolder = program.get<std::string>("input");
-    std::string outputFolder = program.get<std::string>("output");
+    try {
+        program.parse_args(argc, argv);
 
-    // Scan for images
-    scanFolder(inputFolder);
+        ACTION action = NONE;
+        if (program.get<bool>("copy")) { action = COPY; }
+        else if (program.get<bool>("move")) {
+            action = MOVE;
+        }
 
-    // Process all images
-    processImages();
+        ALGORITHM algorithm = KMEANS;
+        switch (program.get<int>("algorithm")) {
+            case 0: algorithm = KMEANS; break;
+            case 1: algorithm = KMEANSOPT; break;
+            case 2: algorithm = HISTOGRAM; break;
+        }
 
-    // Show summary
-    printSummary();
+        std::string inputFolder = program.get<std::string>("input");
+        std::string outputFolder = program.get<std::string>("output");
 
-    if (action != NONE) {
-        // Create grouped folders
-        createGroupFoldersMoveOrCopyFiles(outputFolder, action);
+        // Scan for images
+        scanFolder(inputFolder);
+
+        auto start_time = std::chrono::steady_clock::now();
+        processImages(algorithm);
+        auto now = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed_time = now - start_time;
+        std::cout << "elapsed: " << elapsed_time.count() << std::endl;
+
+        // Show summary
+        printSummary();
+
+        if (action != NONE) {
+            // Create grouped folders
+            createGroupFoldersMoveOrCopyFiles(outputFolder, action);
+        }
+
+        // Generate detailed report
+        generateReport("wallpaper_grouping_report.txt");
+
+        std::cout << "\nGrouping complete! Check the '" << outputFolder << "' folder for results." << std::endl;
+        Cursor::show();
     }
-
-    // Generate detailed report
-    generateReport("wallpaper_grouping_report.txt");
-
-    std::cout << "\nGrouping complete! Check the '" << outputFolder << "' folder for results." << std::endl;
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
 
     return 0;
 }
