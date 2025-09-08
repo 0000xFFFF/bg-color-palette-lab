@@ -391,8 +391,8 @@ void processImages(ALGORITHM algorithm)
 
     std::cout << "Using " << numThreads << " threads for processing." << std::endl;
 
-    int totalImages = images.size();
-    int chunkSize = (totalImages + numThreads - 1) / numThreads;
+    size_t totalImages = images.size();
+    size_t chunkSize = (totalImages + numThreads - 1) / numThreads;
     std::atomic<int> processedImages{0};
 
     std::vector<std::thread> threads;
@@ -402,15 +402,16 @@ void processImages(ALGORITHM algorithm)
     Cursor::termClear();
 
     std::thread printThread([&running, &processedImages, &totalImages]() {
-        std::chrono::steady_clock::time_point start_time, prev_time;
-        size_t prev_processed;
+        std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point prev_time = start_time;
+        size_t prev_processed = 0;
 
-        start_time = std::chrono::steady_clock::now();
+        // Moving average for i/s calculation
+        std::vector<double> speed_samples;
+        const size_t max_samples = 10; // Average over last 10 samples
 
         while (running) {
-
             std::this_thread::sleep_for(std::chrono::milliseconds(300));
-
             {
                 std::lock_guard<std::mutex> lock(coutMutex);
                 Cursor::reset();
@@ -423,24 +424,57 @@ void processImages(ALGORITHM algorithm)
                 auto now = std::chrono::steady_clock::now();
                 std::chrono::duration<double> elapsed_time = now - start_time;
                 std::chrono::duration<double> time_delta = now - prev_time;
-                double i_per_sec = (current - prev_processed) / time_delta.count();
+
+                // Calculate instantaneous speed
+                double instant_speed = 0.0;
+                if (time_delta.count() > 0) {
+                    instant_speed = (current - prev_processed) / time_delta.count();
+                }
+
+                // Add to moving average (only if we processed some images)
+                if (current > prev_processed) {
+                    speed_samples.push_back(instant_speed);
+                    if (speed_samples.size() > max_samples) {
+                        speed_samples.erase(speed_samples.begin());
+                    }
+                }
+
+                // Calculate averaged speed
+                double avg_speed = 0.0;
+                if (!speed_samples.empty()) {
+                    double sum = 0.0;
+                    for (double speed : speed_samples) {
+                        sum += speed;
+                    }
+                    avg_speed = sum / speed_samples.size();
+                }
+
                 prev_time = now;
                 prev_processed = current;
 
                 std::cout << std::endl;
                 float p = static_cast<float>(current) / static_cast<float>(totalImages);
+
+                // Calculate ETA
+                std::string eta_str = "";
+                if (avg_speed > 0 && current < totalImages) {
+                    double remaining_time = (totalImages - current) / avg_speed;
+                    int eta_minutes = static_cast<int>(remaining_time / 60);
+                    int eta_seconds = static_cast<int>(remaining_time) % 60;
+                    eta_str = " ETA: " + std::to_string(eta_minutes) + "m " + std::to_string(eta_seconds) + "s";
+                }
+
                 std::cout << "==: " << current << "/" << totalImages << "  "
                           << std::fixed << std::setprecision(1)
-                          << p * 100 << "% (" << i_per_sec << " i/s)"
-                          << "               " << std::endl;
+                          << p * 100 << "% (avg: " << std::setprecision(1) << avg_speed << " i/s)"
+                          << eta_str << "               " << std::endl;
             }
         }
-
         std::cout << "All threads finished processing." << std::endl;
     });
 
-    auto processImageThread = [&processedImages, &algorithm](int start, int end, int threadId) {
-        for (int i = start; i < end; ++i) {
+    auto processImageThread = [&processedImages, &algorithm](size_t start, size_t end, int threadId) {
+        for (size_t i = start; i < end; ++i) {
             auto& imageInfo = images[i];
 
             cv::Mat image = cv::imread(imageInfo.path);
@@ -467,8 +501,8 @@ void processImages(ALGORITHM algorithm)
     };
 
     for (int t = 0; t < numThreads; ++t) {
-        int start = t * chunkSize;
-        int end = std::min(start + chunkSize, totalImages);
+        size_t start = t * chunkSize;
+        size_t end = std::min(start + chunkSize, totalImages);
         if (start >= totalImages) break;
         threads.emplace_back(processImageThread, start, end, t);
     }
@@ -661,7 +695,7 @@ int main(int argc, char* argv[])
         processImages(algorithm);
         auto now = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_time = now - start_time;
-        std::cout << "elapsed: " << elapsed_time.count() << std::endl;
+        std::cout << "\n\nProcessing took: " << elapsed_time.count() << std::endl;
 
         // Show summary
         printSummary();
@@ -674,7 +708,7 @@ int main(int argc, char* argv[])
         // Generate detailed report
         generateReport("wallpaper_grouping_report.txt");
 
-        std::cout << "\nGrouping complete! Check the '" << outputFolder << "' folder for results." << std::endl;
+        std::cout << "\nDone!" << std::endl;
         Cursor::show();
     }
     catch (const std::exception& e) {
