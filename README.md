@@ -23,7 +23,7 @@ sudo make install
 ./bgcpl-palette <file.png/jpg/...>
 
 # Group images by color groups below. Multithreaded.
-./bgcpl-grouper <dir>
+./bgcpl-grouper -i <input_dir> -o <output_dir> --copy
 ```
 
 ### Color Groups
@@ -44,3 +44,4 @@ sudo make install
 | Earth_Tones      | 25      | 45      | 0.2     | 0.7     | 0.3         | 0.7         | (100, 150, 200)               |
 
 <img src="preview/preview.png">
+
