@@ -409,6 +409,7 @@ void processImages(ALGORITHM algorithm)
         // Moving average for i/s calculation
         std::vector<double> speed_samples;
         const size_t max_samples = 10; // Average over last 10 samples
+        float top_speed = 0.0f;
 
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(300));
@@ -464,9 +465,11 @@ void processImages(ALGORITHM algorithm)
                     eta_str = " ETA: " + std::to_string(eta_minutes) + "m " + std::to_string(eta_seconds) + "s";
                 }
 
+                if (avg_speed > top_speed) top_speed = avg_speed;
+
                 std::cout << "==: " << current << "/" << totalImages << "  "
                           << std::fixed << std::setprecision(1)
-                          << p * 100 << "% (avg: " << std::setprecision(1) << avg_speed << " i/s)"
+                          << p * 100 << "% (avg: " << std::setprecision(1) << avg_speed << " i/s)" << " (top: " << top_speed << " i/s)"
                           << eta_str << "               " << std::endl;
             }
         }
@@ -686,7 +689,6 @@ int main(int argc, char* argv[])
         }
 
         std::string inputFolder = program.get<std::string>("input");
-        std::string outputFolder = program.get<std::string>("output");
 
         // Scan for images
         scanFolder(inputFolder);
@@ -702,6 +704,7 @@ int main(int argc, char* argv[])
 
         if (action != NONE) {
             // Create grouped folders
+            std::string outputFolder = program.get<std::string>("output");
             createGroupFoldersMoveOrCopyFiles(outputFolder, action);
         }
 
