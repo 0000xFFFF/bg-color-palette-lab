@@ -644,9 +644,9 @@ int main(int argc, char* argv[])
     options_required.add_argument("-i", "--input")
         .help("input folder")
         .required();
-    options_required.add_argument("-o", "--output")
-        .help("output folder (if not speicifed files won't be moved/copied, must specify --copy or --move to do action)");
     auto& options_optional = program.add_group("Optional");
+    options_optional.add_argument("-o", "--output")
+        .help("output folder (if not speicifed files won't be moved/copied, must specify --copy or --move to do action)");
     auto& mutex_group = options_optional.add_mutually_exclusive_group();
     mutex_group.add_argument("-c", "--copy")
         .help("copy files to output dir")
