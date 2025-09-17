@@ -641,6 +641,8 @@ void handleCtrlC(int)
 int main(int argc, char* argv[])
 {
 
+    freopen("/dev/null", "w", stderr); // suppress errors
+
     argparse::ArgumentParser program("dcm_master");
     program.add_description("group wallpapers by color palette");
     auto& options_required = program.add_group("Required");
