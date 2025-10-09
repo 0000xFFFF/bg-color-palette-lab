@@ -56,6 +56,7 @@ private:
         }
         
         // Convert centers to color info
+        palette.reserve(k);
         palette.clear();
         for (int i = 0; i < k; i++) {
             ColorInfo colorInfo;

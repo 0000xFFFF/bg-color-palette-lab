@@ -1,7 +1,6 @@
 #include <argparse/argparse.hpp>
 #include <csignal>
 #include <opencv2/opencv.hpp>
-
 #include <algorithm>
 #include <atomic>
 #include <filesystem>
@@ -14,15 +13,8 @@
 #include <thread>
 #include <vector>
 
-namespace fs = std::filesystem;
-
-namespace Cursor {
-    void termClear() { std::cout << "\033[2J"; }
-    void reset() { std::cout << "\033[H"; }
-    void hide() { std::cout << "\033[?25l" << std::flush; }
-    void show() { std::cout << "\033[?25h" << std::flush; }
-
-}; // namespace Cursor
+#include "globals.hpp"
+#include "utils.hpp"
 
 enum ALGORITHM {
     KMEANS,
@@ -52,7 +44,6 @@ struct ImageInfo {
 };
 
 std::vector<ImageInfo> images;
-std::vector<std::string> supportedExtensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"};
 
 // Predefined color groups with representative colors (HSV ranges)
 struct ColorGroup {
@@ -81,13 +72,6 @@ std::vector<ColorGroup> colorGroups = {
 
 std::mutex coutMutex;
 std::mutex processMutex;
-
-bool isSupportedFormat(const std::string& filename)
-{
-    std::string extension = filename.substr(filename.find_last_of("."));
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supportedExtensions.begin(), supportedExtensions.end(), extension) != supportedExtensions.end();
-}
 
 void calculateColorProperties(ColorInfo& colorInfo)
 {
@@ -354,20 +338,25 @@ void assignImageToGroup(ImageInfo& imageInfo)
     }
 }
 
-void scanFolder(const std::string& folderPath)
+size_t scanFolderMakeStructs(const std::string& folderPath)
 {
     std::cout << "Scanning folder: " << folderPath << std::endl;
 
+    if (!std::filesystem::exists(folderPath)) {
+        std::cerr << "Error scanning folder: " << folderPath << std::endl;
+        return 0;
+    }
+
     try {
         size_t files = 0;
-        for (const auto& entry : fs::recursive_directory_iterator(folderPath)) {
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(folderPath)) {
             if (entry.is_regular_file() && isSupportedFormat(entry.path().filename().string())) {
                 files++;
             }
         }
         images.reserve(files);
 
-        for (const auto& entry : fs::recursive_directory_iterator(folderPath)) {
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(folderPath)) {
             if (entry.is_regular_file() && isSupportedFormat(entry.path().filename().string())) {
                 ImageInfo imgInfo;
                 imgInfo.path = entry.path().string();
@@ -376,16 +365,26 @@ void scanFolder(const std::string& folderPath)
             }
         }
     }
-    catch (const fs::filesystem_error& ex) {
+    catch (const std::filesystem::filesystem_error& ex) {
         std::cerr << "Error scanning folder: " << ex.what() << std::endl;
-        return;
+        return 0;
     }
 
-    std::cout << "Found " << images.size() << " images to process." << std::endl;
+    int totalCount = images.size();
+    std::cout << "Found " << totalCount << " image files." << std::endl;
+
+    if (totalCount == 0) {
+        std::cout << "No images found." << std::endl;
+    }
+
+    return totalCount;
 }
 
-void processImages(ALGORITHM algorithm)
+void processImages(const std::string& inputFolder, ALGORITHM algorithm)
 {
+    size_t count = scanFolderMakeStructs(inputFolder);
+    if (!(count > 0)) { exit(1); }
+
     int numThreads = std::thread::hardware_concurrency();
     if (numThreads == 0) numThreads = 4; // Fallback in case detection fails
 
@@ -396,6 +395,7 @@ void processImages(ALGORITHM algorithm)
     std::atomic<int> processedImages{0};
 
     std::vector<std::thread> threads;
+    threads.reserve(numThreads);
     std::atomic<bool> running = true;
 
     Cursor::hide();
@@ -473,7 +473,7 @@ void processImages(ALGORITHM algorithm)
                           << eta_str << "               " << std::endl;
             }
         }
-        std::cout << "All threads finished processing." << std::endl;
+        std::cout << std::endl;
     });
 
     auto processImageThread = [&processedImages, &algorithm](size_t start, size_t end, int threadId) {
@@ -524,7 +524,7 @@ void processImages(ALGORITHM algorithm)
 void createGroupFoldersMoveOrCopyFiles(const std::string& outputPath, ACTION action)
 {
     try {
-        fs::create_directories(outputPath);
+        std::filesystem::create_directories(outputPath);
 
         std::map<std::string, std::vector<ImageInfo*>> groupedImages;
 
@@ -538,7 +538,7 @@ void createGroupFoldersMoveOrCopyFiles(const std::string& outputPath, ACTION act
         // Create folders and copy/move images
         for (const auto& group : groupedImages) {
             std::string groupPath = outputPath + "/" + group.first;
-            fs::create_directories(groupPath);
+            std::filesystem::create_directories(groupPath);
 
             std::cout << "\n"
                       << group.first << " (" << group.second.size() << " images):" << std::endl;
@@ -551,10 +551,10 @@ void createGroupFoldersMoveOrCopyFiles(const std::string& outputPath, ACTION act
                     case COPY:
                         {
                             try {
-                                fs::copy_file(image->path, destPath, fs::copy_options::overwrite_existing);
+                                std::filesystem::copy_file(image->path, destPath, std::filesystem::copy_options::overwrite_existing);
                                 std::cout << "  Copied: " << image->filename << " (score: " << std::fixed << std::setprecision(2) << image->groupScore << ")" << std::endl;
                             }
-                            catch (const fs::filesystem_error& ex) {
+                            catch (const std::filesystem::filesystem_error& ex) {
                                 std::cerr << "  Error copying " << image->filename << ": " << ex.what() << std::endl;
                             }
 
@@ -563,10 +563,10 @@ void createGroupFoldersMoveOrCopyFiles(const std::string& outputPath, ACTION act
                     case MOVE:
                         {
                             try {
-                                fs::rename(image->path, destPath);
+                                std::filesystem::rename(image->path, destPath);
                                 std::cout << "  Moved: " << image->filename << " (score: " << std::fixed << std::setprecision(2) << image->groupScore << ")" << std::endl;
                             }
-                            catch (const fs::filesystem_error& ex) {
+                            catch (const std::filesystem::filesystem_error& ex) {
                                 std::cerr << "  Error moving " << image->filename << ": " << ex.what() << std::endl;
                             }
 
@@ -576,7 +576,7 @@ void createGroupFoldersMoveOrCopyFiles(const std::string& outputPath, ACTION act
             }
         }
     }
-    catch (const fs::filesystem_error& ex) {
+    catch (const std::filesystem::filesystem_error& ex) {
         std::cerr << "Error creating output folders: " << ex.what() << std::endl;
     }
 }
@@ -643,7 +643,7 @@ int main(int argc, char* argv[])
 
     freopen("/dev/null", "w", stderr); // suppress errors
 
-    argparse::ArgumentParser program("dcm_master");
+    argparse::ArgumentParser program("dcm_master", VERSION);
     program.add_description("group wallpapers by color palette");
     auto& options_required = program.add_group("Required");
     options_required.add_argument("-i", "--input")
@@ -692,11 +692,8 @@ int main(int argc, char* argv[])
 
         std::string inputFolder = program.get<std::string>("input");
 
-        // Scan for images
-        scanFolder(inputFolder);
-
         auto start_time = std::chrono::steady_clock::now();
-        processImages(algorithm);
+        processImages(inputFolder, algorithm);
         auto now = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_time = now - start_time;
         std::cout << "\n\nProcessing took: " << elapsed_time.count() << std::endl;

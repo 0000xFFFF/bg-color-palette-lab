@@ -1,17 +1,17 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <opencv2/opencv.hpp>
-#include <queue>
 #include <thread>
 #include <vector>
 
-namespace fs = std::filesystem;
+#include "globals.hpp"
+#include "utils.hpp"
+#include "debug.hpp"
 
 struct ValidationResult {
     std::string filePath;
@@ -21,72 +21,16 @@ struct ValidationResult {
     int height;
 };
 
-class ThreadSafeQueue {
-
-  public:
-    void push(const std::string& item)
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_queue.push(item);
-        m_condition.notify_one();
-    }
-
-    bool pop(std::string& item, std::chrono::milliseconds timeout = std::chrono::milliseconds(100))
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        if (m_condition.wait_for(lock, timeout, [this] { return !m_queue.empty(); })) {
-            item = m_queue.front();
-            m_queue.pop();
-            return true;
-        }
-        return false;
-    }
-
-    bool empty() const
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_queue.empty();
-    }
-
-    size_t size() const
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_queue.size();
-    }
-
-  private:
-    std::queue<std::string> m_queue;
-    mutable std::mutex m_mutex;
-    std::condition_variable m_condition;
-};
-
-// Global variables
-std::vector<std::string> supportedExtensions = {
-    ".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp", ".gif"};
-
 std::vector<ValidationResult> results;
 std::mutex resultsMutex;
-std::atomic<int> processedCount{0};
-std::atomic<int> totalCount{0};
 
-int validCount = 0;
-int corruptedCount = 0;
-
-unsigned int numThreads = std::thread::hardware_concurrency();
-std::chrono::high_resolution_clock::time_point startTime;
-
-bool isSupportedFormat(const std::string& filename)
-{
-    std::string extension = filename.substr(filename.find_last_of("."));
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supportedExtensions.begin(), supportedExtensions.end(), extension) != supportedExtensions.end();
-}
+std::atomic<int> corruptedCount = 0;
 
 ValidationResult validateImage(const std::string& imagePath)
 {
     ValidationResult result;
     result.filePath = imagePath;
-    result.filename = fs::path(imagePath).filename().string();
+    result.filename = std::filesystem::path(imagePath).filename().string();
     result.isValid = false;
     result.width = 0;
     result.height = 0;
@@ -108,114 +52,131 @@ ValidationResult validateImage(const std::string& imagePath)
         result.isValid = false;
     }
 
+    if (!result.isValid) { corruptedCount++; }
+
     return result;
 }
 
-std::string formatTime(int seconds)
-{
-    int hours = seconds / 3600;
-    int minutes = (seconds % 3600) / 60;
-    int secs = seconds % 60;
+void processFolder(const std::string& inputFolder)
+{    
+    auto startTime = std::chrono::high_resolution_clock::now();
 
-    if (hours > 0) {
-        return std::to_string(hours) + "h " + std::to_string(minutes) + "m " + std::to_string(secs) + "s";
-    }
-    else if (minutes > 0) {
-        return std::to_string(minutes) + "m " + std::to_string(secs) + "s";
-    }
-    else {
-        return std::to_string(secs) + "s";
-    }
-}
+    std::vector<std::string> images;
+    size_t totalCount = scanFolder(images, inputFolder);
+    if (!(totalCount > 0)) { exit(1); }
+    
+    //results.reserve(totalCount);
+    
+    int numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 4; // Fallback in case detection fails
 
-void workerThread(ThreadSafeQueue& workQueue)
-{
-    std::string imagePath;
-    while (workQueue.pop(imagePath)) {
-        ValidationResult result = validateImage(imagePath);
+    std::cout << "Using " << numThreads << " threads for processing." << std::endl;
 
-        // Thread-safe result storage
-        {
-            std::lock_guard<std::mutex> lock(resultsMutex);
-            results.push_back(result);
-        }
+    size_t totalImages = images.size();
+    size_t chunkSize = (totalImages + numThreads - 1) / numThreads;
+    std::atomic<int> processedImages{0};
 
-        int current = ++processedCount;
+    std::vector<std::thread> threads;
+    threads.reserve(numThreads);
+    std::atomic<bool> running = true;
 
-        // Thread-safe progress output with ETA (less frequent to avoid spam)
-        if (current % 10 == 0 || current == totalCount) {
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+    std::thread printThread([&running, &processedImages, &totalImages]() {
+        std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point prev_time = start_time;
+        size_t prev_processed = 0;
 
-            double progress = (double)current / totalCount;
-            std::string etaStr = "0s";
+        // Moving average for i/s calculation
+        std::vector<double> speed_samples;
+        const size_t max_samples = 10; // Average over last 10 samples
+        float top_speed = 0.0f;
 
-            if (current > 0 && progress > 0.01) { // Only calculate ETA after 1% progress
-                auto totalEstimatedTime = elapsed / progress;
-                auto remainingTime = totalEstimatedTime - elapsed;
-                int remainingSeconds = std::chrono::duration_cast<std::chrono::seconds>(remainingTime).count();
+        while (running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            {
+                size_t current = processedImages;
+                auto now = std::chrono::steady_clock::now();
+                std::chrono::duration<double> elapsed_time = now - start_time;
+                std::chrono::duration<double> time_delta = now - prev_time;
 
-                if (remainingSeconds > 0) {
-                    etaStr = formatTime(remainingSeconds);
+                // Calculate instantaneous speed
+                double instant_speed = 0.0;
+                if (time_delta.count() > 0) {
+                    instant_speed = (current - prev_processed) / time_delta.count();
                 }
-            }
 
-            std::cout << "\rProgress: " << current << "/" << totalCount
-                      << " (" << std::fixed << std::setprecision(1)
-                      << (100.0 * progress) << "%) - ETA: " << etaStr << std::flush;
+                // Add to moving average (only if we processed some)
+                if (current > prev_processed) {
+                    speed_samples.push_back(instant_speed);
+                    if (speed_samples.size() > max_samples) {
+                        speed_samples.erase(speed_samples.begin());
+                    }
+                }
+
+                // Calculate averaged speed
+                double avg_speed = 0.0;
+                if (!speed_samples.empty()) {
+                    double sum = 0.0;
+                    for (double speed : speed_samples) {
+                        sum += speed;
+                    }
+                    avg_speed = sum / speed_samples.size();
+                }
+
+                prev_time = now;
+                prev_processed = current;
+
+                float p = static_cast<float>(current) / static_cast<float>(totalImages);
+
+                // Calculate ETA
+                std::string eta_str = "";
+                if (avg_speed > 0 && current < totalImages) {
+                    double remaining_time = (totalImages - current) / avg_speed;
+                    int eta_minutes = static_cast<int>(remaining_time / 60);
+                    int eta_seconds = static_cast<int>(remaining_time) % 60;
+                    eta_str = " ETA: " + std::to_string(eta_minutes) + "m " + std::to_string(eta_seconds) + "s";
+                }
+
+                if (avg_speed > top_speed) top_speed = avg_speed;
+
+                Cursor::cr();
+                std::cout << "==: " << current << "/" << totalImages << "  "
+                          << std::fixed << std::setprecision(1)
+                          << p * 100 << "% (avg: " << std::setprecision(1) << avg_speed << " i/s)" << " (top: " << top_speed << " i/s)"
+                          << eta_str << "               ";
+                std::cout.flush();
+            }
+        }
+        std::cout << std::endl;
+    });
+
+    auto processImageThread = [&processedImages, &images](size_t start, size_t end, int threadId) {
+        UNUSED(threadId);
+        for (size_t i = start; i < end; ++i) {
+            ValidationResult result = validateImage(images[i]);
+            {
+                std::lock_guard<std::mutex> lock(resultsMutex);
+                results.push_back(result);
+            }
+            ++processedImages;
+        }
+    };
+
+    for (int t = 0; t < numThreads; ++t) {
+        size_t start = t * chunkSize;
+        size_t end = std::min(start + chunkSize, totalImages);
+        if (start >= totalImages) break;
+        threads.emplace_back(processImageThread, start, end, t);
+    }
+
+    for (auto& thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
-}
 
-void scanFolder(const std::string& folderPath)
-{
-    std::cout << "Scanning folder: " << folderPath << std::endl;
-
-    // Collect all image files first
-    std::vector<std::string> imageFiles;
-
-    try {
-        for (const auto& entry : fs::recursive_directory_iterator(folderPath)) {
-            if (entry.is_regular_file() && isSupportedFormat(entry.path().filename().string())) {
-                imageFiles.push_back(entry.path().string());
-            }
-        }
-    }
-    catch (const fs::filesystem_error& ex) {
-        std::cerr << "Error scanning folder: " << ex.what() << std::endl;
-        exit(1);
-        return;
-    }
-
-    totalCount = imageFiles.size();
-    std::cout << "Found " << totalCount << " image files to validate." << std::endl;
-
-    if (totalCount == 0) {
-        std::cout << "No images found to validate." << std::endl;
-        return;
-    }
-
-    // Create work queue and populate it
-    ThreadSafeQueue workQueue;
-    for (const auto& imagePath : imageFiles) {
-        workQueue.push(imagePath);
-    }
-
-    // Start worker threads
-    std::vector<std::thread> workers;
-    workers.reserve(numThreads);
-
-    // Record start time for ETA calculation
-    startTime = std::chrono::high_resolution_clock::now();
-
-    for (unsigned int i = 0; i < numThreads; ++i) {
-        workers.emplace_back(workerThread, std::ref(workQueue));
-    }
-
-    // Wait for all threads to complete
-    for (auto& worker : workers) {
-        worker.join();
-    }
+    // stop print thread
+    running = false;
+    printThread.join();
 
     auto endTime = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
@@ -223,22 +184,8 @@ void scanFolder(const std::string& folderPath)
     std::cout << "\nValidation completed in " << duration.count() << "ms" << std::endl;
     std::cout << "Average: " << std::fixed << std::setprecision(2)
               << (double)duration.count() / totalCount << "ms per image" << std::endl;
-}
-
-void calcAndPrintSummary()
-{
-    for (const auto& result : results) {
-        if (result.isValid) {
-            validCount++;
-        }
-        else {
-            corruptedCount++;
-        }
-    }
-
-    std::cout << "\n=== VALIDATION SUMMARY ===" << std::endl;
     std::cout << "Total files processed: " << results.size() << std::endl;
-    std::cout << "Valid images: " << validCount << std::endl;
+    std::cout << "Valid images: " << (results.size() - corruptedCount) << std::endl;
     std::cout << "Corrupted/unreadable images: " << corruptedCount << std::endl;
 
     if (corruptedCount > 0) {
@@ -248,34 +195,6 @@ void calcAndPrintSummary()
                 std::cout << "  " << result.filePath << std::endl;
             }
         }
-    }
-}
-
-bool foundCorruptedFiles()
-{
-    return corruptedCount > 0;
-}
-
-void printDetailedResults()
-{
-    std::cout << "\n=== DETAILED RESULTS ===" << std::endl;
-
-    // Sort results by filename for better readability
-    std::vector<ValidationResult> sortedResults = results;
-    std::sort(sortedResults.begin(), sortedResults.end(),
-              [](const ValidationResult& a, const ValidationResult& b) {
-                  return a.filename < b.filename;
-              });
-
-    for (const auto& result : sortedResults) {
-        std::cout << result.filename;
-        if (result.isValid) {
-            std::cout << " - OK (" << result.width << "x" << result.height << ")";
-        }
-        else {
-            std::cout << " - FAILED TO LOAD";
-        }
-        std::cout << std::endl;
     }
 }
 
@@ -303,7 +222,7 @@ void deleteCorruptedFiles()
         int errorCount = 0;
         for (const auto& file : corruptedFiles) {
             try {
-                if (fs::remove(file)) {
+                if (std::filesystem::remove(file)) {
                     std::cout << "Deleted: " << file << std::endl;
                     deletedCount++;
                 }
@@ -311,7 +230,7 @@ void deleteCorruptedFiles()
                     std::cout << "Failed to delete: " << file << std::endl;
                 }
             }
-            catch (const fs::filesystem_error& ex) {
+            catch (const std::filesystem::filesystem_error& ex) {
                 std::cout << "Error deleting " << file << ": " << ex.what() << std::endl;
                 errorCount++;
             }
@@ -339,34 +258,34 @@ void moveCorruptedFiles(const std::string& quarantineFolder = "corrupted_images"
     }
 
     try {
-        fs::create_directories(quarantineFolder);
+        std::filesystem::create_directories(quarantineFolder);
 
         int movedCount = 0;
         for (const auto& file : corruptedFiles) {
-            fs::path sourcePath(file);
-            fs::path destPath = fs::path(quarantineFolder) / sourcePath.filename();
+            std::filesystem::path sourcePath(file);
+            std::filesystem::path destPath = std::filesystem::path(quarantineFolder) / sourcePath.filename();
 
             // Handle filename conflicts
             int counter = 1;
-            while (fs::exists(destPath)) {
+            while (std::filesystem::exists(destPath)) {
                 std::string stem = sourcePath.stem().string();
                 std::string extension = sourcePath.extension().string();
-                destPath = fs::path(quarantineFolder) / (stem + "_" + std::to_string(counter) + extension);
+                destPath = std::filesystem::path(quarantineFolder) / (stem + "_" + std::to_string(counter) + extension);
                 counter++;
             }
 
             try {
-                fs::rename(file, destPath);
+                std::filesystem::rename(file, destPath);
                 std::cout << "Moved: " << sourcePath.filename() << " -> " << destPath << std::endl;
                 movedCount++;
             }
-            catch (const fs::filesystem_error& ex) {
+            catch (const std::filesystem::filesystem_error& ex) {
                 std::cout << "Error moving " << file << ": " << ex.what() << std::endl;
             }
         }
         std::cout << "\nMoved " << movedCount << " corrupted files to '" << quarantineFolder << "' folder." << std::endl;
     }
-    catch (const fs::filesystem_error& ex) {
+    catch (const std::filesystem::filesystem_error& ex) {
         std::cerr << "Error creating quarantine folder: " << ex.what() << std::endl;
     }
 }
@@ -377,28 +296,19 @@ int main(int argc, char* argv[])
 
     std::string inputFolder = "bg";
 
-
     if (argc >= 2) {
         inputFolder = argv[1];
     }
     else {
+        std::cout << VERSION << std::endl;
         std::cout << "Usage: " << argv[0] << " <folder_path>" << std::endl;
         std::cout << "Using default folder: " << inputFolder << std::endl;
     }
 
-    std::cout << "Image Validator - Corrupted Image Detector" << std::endl;
-    std::cout << "=========================================" << std::endl;
-    std::cout << "Using " << numThreads << " threads for validation." << std::endl;
+    processFolder(inputFolder);
 
-    // Scan and validate all images
-    scanFolder(inputFolder);
+    if (corruptedCount > 0) {
 
-    // Show summary
-    calcAndPrintSummary();
-
-    if (foundCorruptedFiles()) {
-
-        // Ask user what to do with corrupted files
         std::cout << "\nWhat would you like to do with corrupted files?" << std::endl;
         std::cout << "1. Delete them permanently" << std::endl;
         std::cout << "2. Move them to 'corrupted_images' folder" << std::endl;

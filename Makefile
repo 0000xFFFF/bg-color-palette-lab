@@ -9,14 +9,18 @@ BINDIR = $(PREFIX)/bin
 LIBDIR = $(PREFIX)/lib
 INCLUDEDIR = $(PREFIX)/include
 
-palette: src/palette.cpp
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) src/palette.cpp -o bgcpl-palette
-	
-grouper: src/grouper.cpp
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) src/grouper.cpp -o bgcpl-grouper
+PALETTE_FILES = src/palette.cpp
+GROUPER_FILES = src/grouper.cpp src/utils.cpp
+VALIDATOR_FILES = src/validator.cpp src/utils.cpp
 
-validator: src/validator.cpp
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) src/validator.cpp -o bgcpl-validator
+palette: $(PALETTE_FILES)
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(PALETTE_FILES) -o bgcpl-palette
+	
+grouper: $(GROUPER_FILES)
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(GROUPER_FILES) -o bgcpl-grouper
+
+validator: $(VALIDATOR_FILES)
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(VALIDATOR_FILES) -o bgcpl-validator
 
 
 install:

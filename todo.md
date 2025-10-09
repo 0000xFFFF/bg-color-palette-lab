@@ -1,0 +1,6 @@
+- validator
+    - add proper args for move copy delete
+    - add version
+- palette
+    - add proper args for saving files
+    - add version
