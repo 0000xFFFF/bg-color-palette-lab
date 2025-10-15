@@ -94,6 +94,7 @@ void processFolder(const std::string& inputFolder)
             std::this_thread::sleep_for(std::chrono::milliseconds(300));
             {
                 size_t current = processedImages;
+                size_t corrupted = corruptedCount;
                 auto now = std::chrono::steady_clock::now();
                 std::chrono::duration<double> elapsed_time = now - start_time;
                 std::chrono::duration<double> time_delta = now - prev_time;
@@ -139,7 +140,7 @@ void processFolder(const std::string& inputFolder)
                 if (avg_speed > top_speed) top_speed = avg_speed;
 
                 Cursor::cr();
-                std::cout << "==: " << current << "/" << totalImages << "  "
+                std::cout << "==: " << current << "/" << totalImages << " (bad: " << corrupted << ") "
                           << std::fixed << std::setprecision(1)
                           << p * 100 << "% (avg: " << std::setprecision(1) << avg_speed << " i/s)" << " (top: " << top_speed << " i/s)"
                           << eta_str << "               ";
