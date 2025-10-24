@@ -335,7 +335,7 @@ int main(int argc, char* argv[])
         std::cin >> choice;
     }
 
-    std::string inputPath = program.get<std::string>("--input");
+    std::string inputPath = program.get<std::string>("input");
     std::vector<std::string> images;
     getImages(images, inputPath);
     if (images.empty()) {
