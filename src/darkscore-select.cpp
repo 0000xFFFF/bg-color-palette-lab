@@ -5,13 +5,13 @@
 #include <cstdlib>
 #include <ctime>
 #include <fcntl.h>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <random>
 #include <signal.h>
 #include <string>
-#include <filesystem>
 #include <sys/stat.h>
 #include <thread>
 #include <unistd.h>
@@ -53,16 +53,17 @@ void daemonize()
     // Change working directory to root
     chdir("/");
 
-    // Close standard file descriptors
+    // Close stdin
     close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
 
-    // Redirect stdout/stderr to a log file
-    std::ofstream log("/tmp/darkscore-select.log", std::ios::app);
-    if (log.is_open()) {
-        std::cout.rdbuf(log.rdbuf());
-        std::cerr.rdbuf(log.rdbuf());
+    // Redirect stdout and stderr to log file using file descriptors
+    int logfd = open("/tmp/darkscore-select.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (logfd != -1) {
+        dup2(logfd, STDOUT_FILENO);
+        dup2(logfd, STDERR_FILENO);
+        if (logfd > 2) {
+            close(logfd);
+        }
     }
 }
 
