@@ -282,7 +282,7 @@ void moveCorruptedFiles(const std::string& quarantineFolder = "corrupted_images"
         std::cout << "\nMoved " << movedCount << " corrupted files to '" << quarantineFolder << "' folder." << std::endl;
     }
     catch (const std::filesystem::filesystem_error& ex) {
-        std::cerr << "Error creating quarantine folder: " << ex.what() << std::endl;
+        std::cout << "Error creating quarantine folder: " << ex.what() << std::endl;
     }
 }
 
@@ -315,8 +315,8 @@ int main(int argc, char* argv[])
         program.parse_args(argc, argv);
     }
     catch (const std::runtime_error& err) {
-        std::cerr << err.what() << std::endl;
-        std::cerr << program;
+        std::cout << err.what() << std::endl;
+        std::cout << program;
         return 1;
     }
 
@@ -339,7 +339,7 @@ int main(int argc, char* argv[])
     std::vector<std::string> images;
     getImages(images, inputPath);
     if (images.empty()) {
-        std::cerr << "No valid images found." << std::endl;
+        std::cout << "No valid images found." << std::endl;
         return 1;
     }
     results.reserve(images.size());
