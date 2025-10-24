@@ -10,26 +10,32 @@
 
 #include "globals.hpp"
 
-// Map darkness score (0=bright, 1=dark) → bucket 0-5 (0=darkest, 5=brightest)
+// Map darkness score (0=bright, 1=dark)
+// bucket 0-5 (0=darkest, 5=brightest)
 int getDarknessBucket(double score)
 {
-    if (score < 0.16) return 5; // very bright
-    if (score < 0.33) return 4; // bright
-    if (score < 0.50) return 3; // mid-bright
-    if (score < 0.66) return 2; // mid-dark
-    if (score < 0.83) return 1; // dark
-    return 0;                   // very dark
+    if (score > 0.9) return 0; // very dark
+    if (score > 0.8) return 1; // dark
+    if (score > 0.6) return 2; // mid-dark
+    if (score > 0.4) return 3; // mid-bright
+    if (score > 0.2) return 4; // bright
+    if (score > 0.0) return 5; // very bright
+    return 5;
 }
 
-// Time of day → target brightness bucket (inverse logic for darkness)
 int getTargetBucketForHour(int hour)
 {
-    if (hour < 5) return 0;  // Deep night = very dark
-    if (hour < 8) return 1;  // Early morning = dark
-    if (hour < 11) return 2; // Morning = mid-dark
-    if (hour < 16) return 5; // Day = very bright
-    if (hour < 19) return 3; // Afternoon fading
-    return 1;                // Evening = dark again
+    if (hour >= 20) return 0; // very dark
+    if (hour >= 19) return 1; // dark
+    if (hour >= 18) return 2; // mid-dark
+    if (hour >= 17) return 3; // mid-bright
+    if (hour >= 16) return 4; // bright
+    if (hour >= 12) return 2; // very bright
+    if (hour >= 9) return 2; // bright
+    if (hour >= 7) return 2; // mid-dark
+    if (hour >= 5) return 1; // dark
+    if (hour >= 0) return 0; // very dark
+    return 0;
 }
 
 struct DarkScoreResult {
