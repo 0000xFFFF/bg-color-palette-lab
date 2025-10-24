@@ -8,12 +8,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-palette",
+      "wpu-palette",
       "src/palette.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/palette.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-palette"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/palette.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-palette"
   },
   {
     "arguments": [
@@ -23,7 +23,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-palette-",
+      "wpu-palette-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -276,8 +276,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -303,25 +303,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/palette-778ad0.o",
+      "/tmp/palette-09b1d1.o",
       "src/palette.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/palette.cpp",
-    "output": "/tmp/palette-778ad0.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/palette.cpp",
+    "output": "/tmp/palette-09b1d1.o"
   },
   {
     "arguments": [
@@ -332,12 +331,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-grouper",
+      "wpu-grouper",
       "src/grouper.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/grouper.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-grouper"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/grouper.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-grouper"
   },
   {
     "arguments": [
@@ -348,12 +347,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-grouper",
+      "wpu-grouper",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-grouper"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-grouper"
   },
   {
     "arguments": [
@@ -363,7 +362,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-grouper-",
+      "wpu-grouper-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -616,8 +615,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -643,25 +642,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/grouper-3b04f5.o",
+      "/tmp/grouper-65e1c0.o",
       "src/grouper.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/grouper.cpp",
-    "output": "/tmp/grouper-3b04f5.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/grouper.cpp",
+    "output": "/tmp/grouper-65e1c0.o"
   },
   {
     "arguments": [
@@ -671,7 +669,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-grouper-",
+      "wpu-grouper-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -924,8 +922,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -951,25 +949,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/utils-194647.o",
+      "/tmp/utils-7dddfd.o",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/tmp/utils-194647.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/tmp/utils-7dddfd.o"
   },
   {
     "arguments": [
@@ -980,12 +977,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-validator",
+      "wpu-validator",
       "src/validator.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/validator.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-validator"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/validator.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-validator"
   },
   {
     "arguments": [
@@ -996,12 +993,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-validator",
+      "wpu-validator",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-validator"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-validator"
   },
   {
     "arguments": [
@@ -1011,7 +1008,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-validator-",
+      "wpu-validator-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -1264,8 +1261,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -1291,25 +1288,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/validator-35b143.o",
+      "/tmp/validator-233b26.o",
       "src/validator.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/validator.cpp",
-    "output": "/tmp/validator-35b143.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/validator.cpp",
+    "output": "/tmp/validator-233b26.o"
   },
   {
     "arguments": [
@@ -1319,7 +1315,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-validator-",
+      "wpu-validator-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -1572,8 +1568,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -1599,25 +1595,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/utils-6f122b.o",
+      "/tmp/utils-c26cf3.o",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/tmp/utils-6f122b.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/tmp/utils-c26cf3.o"
   },
   {
     "arguments": [
@@ -1628,12 +1623,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-darkscore",
+      "wpu-darkscore",
       "src/darkscore.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/darkscore.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-darkscore"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/darkscore.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-darkscore"
   },
   {
     "arguments": [
@@ -1644,12 +1639,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-darkscore",
+      "wpu-darkscore",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-darkscore"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-darkscore"
   },
   {
     "arguments": [
@@ -1659,7 +1654,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-darkscore-",
+      "wpu-darkscore-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -1912,8 +1907,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -1939,25 +1934,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/darkscore-b1dac5.o",
+      "/tmp/darkscore-ad6ba8.o",
       "src/darkscore.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/darkscore.cpp",
-    "output": "/tmp/darkscore-b1dac5.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/darkscore.cpp",
+    "output": "/tmp/darkscore-ad6ba8.o"
   },
   {
     "arguments": [
@@ -1967,7 +1961,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-darkscore-",
+      "wpu-darkscore-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -2220,8 +2214,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -2247,25 +2241,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/utils-c95d6d.o",
+      "/tmp/utils-e6e646.o",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/tmp/utils-c95d6d.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/tmp/utils-e6e646.o"
   },
   {
     "arguments": [
@@ -2276,12 +2269,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-darkscore-select",
+      "wpu-darkscore-select",
       "src/darkscore-select.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/darkscore-select.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-darkscore-select"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/darkscore-select.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-darkscore-select"
   },
   {
     "arguments": [
@@ -2292,12 +2285,12 @@
       "-march=native",
       "-I/usr/include/opencv4",
       "-o",
-      "bgcpl-darkscore-select",
+      "wpu-darkscore-select",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/home/user/.vip/mytools/bg-color-palette-lab/bgcpl-darkscore-select"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/home/user/.vip/mytools/wallpaper-utils/wpu-darkscore-select"
   },
   {
     "arguments": [
@@ -2307,7 +2300,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-darkscore-select-",
+      "wpu-darkscore-select-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -2560,8 +2553,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -2587,25 +2580,24 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/darkscore-select-f75e0c.o",
+      "/tmp/darkscore-select-796a67.o",
       "src/darkscore-select.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/darkscore-select.cpp",
-    "output": "/tmp/darkscore-select-f75e0c.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/darkscore-select.cpp",
+    "output": "/tmp/darkscore-select-796a67.o"
   },
   {
     "arguments": [
@@ -2615,7 +2607,7 @@
       "x86_64-pc-linux-gnu",
       "-emit-obj",
       "-dumpdir",
-      "bgcpl-darkscore-select-",
+      "wpu-darkscore-select-",
       "-disable-free",
       "-clear-ast-before-backend",
       "-disable-llvm-verifier",
@@ -2868,8 +2860,8 @@
       "-target-feature",
       "+sse4a",
       "-debugger-tuning=gdb",
-      "-fdebug-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
-      "-fcoverage-compilation-dir=/home/user/.vip/mytools/bg-color-palette-lab",
+      "-fdebug-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
+      "-fcoverage-compilation-dir=/home/user/.vip/mytools/wallpaper-utils",
       "-resource-dir",
       "/usr/lib/clang/21",
       "-I",
@@ -2895,24 +2887,23 @@
       "-fdeprecated-macro",
       "-ferror-limit",
       "19",
-      "-fmessage-length=190",
+      "-fmessage-length=238",
       "-stack-protector",
       "2",
       "-fgnuc-version=4.2.1",
       "-fskip-odr-check-in-gmf",
       "-fcxx-exceptions",
       "-fexceptions",
-      "-fcolor-diagnostics",
       "-faddrsig",
       "-D__GCC_HAVE_DWARF2_CFI_ASM=1",
       "-x",
       "c++",
       "-o",
-      "/tmp/utils-3bc12b.o",
+      "/tmp/utils-f9f8d9.o",
       "src/utils.cpp"
     ],
-    "directory": "/home/user/.vip/mytools/bg-color-palette-lab",
-    "file": "/home/user/.vip/mytools/bg-color-palette-lab/src/utils.cpp",
-    "output": "/tmp/utils-3bc12b.o"
+    "directory": "/home/user/.vip/mytools/wallpaper-utils",
+    "file": "/home/user/.vip/mytools/wallpaper-utils/src/utils.cpp",
+    "output": "/tmp/utils-f9f8d9.o"
   }
 ]

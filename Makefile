@@ -16,30 +16,30 @@ DARKSCORE_FILES = src/darkscore.cpp src/utils.cpp
 DARKSCORE-SELECT_FILES = src/darkscore-select.cpp src/utils.cpp
 
 palette: $(PALETTE_FILES)
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(PALETTE_FILES) -o bgcpl-palette
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(PALETTE_FILES) -o wpu-palette
 	
 grouper: $(GROUPER_FILES)
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(GROUPER_FILES) -o bgcpl-grouper
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(GROUPER_FILES) -o wpu-grouper
 
 validator: $(VALIDATOR_FILES)
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(VALIDATOR_FILES) -o bgcpl-validator
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(VALIDATOR_FILES) -o wpu-validator
 
 darkscore: $(DARKSCORE_FILES)
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(DARKSCORE_FILES) -o bgcpl-darkscore
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(DARKSCORE_FILES) -o wpu-darkscore
 
 darkscore-select: $(DARKSCORE-SELECT_FILES)
-	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(DARKSCORE-SELECT_FILES) -o bgcpl-darkscore-select
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(DARKSCORE-SELECT_FILES) -o wpu-darkscore-select
 
 install:
-	install -m 755 bgcpl-palette $(BINDIR)
-	install -m 755 bgcpl-grouper $(BINDIR)
-	install -m 755 bgcpl-validator $(BINDIR)
-	install -m 755 bgcpl-darkscore $(BINDIR)
-	install -m 755 bgcpl-darkscore-select $(BINDIR)
+	install -m 755 wpu-palette $(BINDIR)
+	install -m 755 wpu-grouper $(BINDIR)
+	install -m 755 wpu-validator $(BINDIR)
+	install -m 755 wpu-darkscore $(BINDIR)
+	install -m 755 wpu-darkscore-select $(BINDIR)
 
 
 clean:
-	rm bgcpl-palette bgcpl-grouper bgcpl-validator bgcpl-darkscore bgcpl-darkscore-select
+	rm wpu-palette wpu-grouper wpu-validator wpu-darkscore wpu-darkscore-select
 
 all: palette grouper validator darkscore darkscore-select
 

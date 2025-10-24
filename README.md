@@ -1,10 +1,10 @@
-# bg-color-palette-lab
+# wallpaper-utils
 
 - [TLDR](#tldr)
-- [group wallpapers](#bgcpl-grouper) by [color groups](#color-groups)
-- [validate images](#bgcpl-validator)
-- [change wallpaper based on time of day (night time = dark image, day time = bright image](#bgcpl-darkscore-bgcpl-darkscore-select)
-- [create color palette from image](#bgcpl-palette)
+- [group wallpapers](#wpu-grouper) by [color groups](#color-groups)
+- [validate images](#wpu-validator)
+- [change wallpaper based on time of day (night time = dark image, day time = bright image](#wpu-darkscore-wpu-darkscore-select)
+- [create color palette from image](#wpu-palette)
 
 ## Requirements
 
@@ -24,24 +24,24 @@ sudo make install
 
 ```bash
 # Recursevly validate images in dir (find corrupt images). Test if they can be loaded. Delete with -d, Move with -m
-./bgcpl-validator -i <dir>
+./wpu-validator -i <dir>
 
 # Group images by color groups below.
-./bgcpl-grouper -i <input_dir> -o <output_dir> --copy
+./wpu-grouper -i <input_dir> -o <output_dir> --copy
 
 # Give darkness score for images and write to csv, sort output.
-./bgcpl-darkscore -i <input_dir> -o bgcpl-darkscore_output.csv --sort
+./wpu-darkscore -i <input_dir> -o wpu-darkscore_output.csv --sort
 
 # Read the previous file and set wallpaper based on time of day, -e execute, -l loop logic, -d deamonize
-./bgcpl-darkscore-select -i bgcpl-darkscore_output.csv -e plasma-apply-wallpaperimage -l -d
+./wpu-darkscore-select -i wpu-darkscore_output.csv -e plasma-apply-wallpaperimage -l -d
 
 # Show most dominant colors in image and make a color palette.
-./bgcpl-palette <file.png/jpg/...>
+./wpu-palette <file.png/jpg/...>
 ```
 
 ---
 
-## bgcpl-grouper
+## wpu-grouper
 
 ### Color Groups
 
@@ -85,7 +85,7 @@ Optional (detailed usage):
 
 ## </details>
 
-## bgcpl-darkscore bgcpl-darkscore-select
+## wpu-darkscore wpu-darkscore-select
 
 ### Workflow
 
@@ -93,7 +93,7 @@ Optional (detailed usage):
 # create csv file that will hold absolute file paths to images
 # and their darkness scores (/abs/file/path|darkness score)
 # --sort descending order
-./bgcpl-darkscore -i <input_dir> -o bgcpl-darkscore_output.csv --sort
+./wpu-darkscore -i <input_dir> -o wpu-darkscore_output.csv --sort
 
 # read from that csv file and create 6 buckets
 # (very dark, dark, mid-dark, mid-bright, bright, very bright)
@@ -104,7 +104,7 @@ Optional (detailed usage):
 # it reshuffles when:
 #   * after looping through the entire bucket
 #   * if bucket changes (hour changes)
-./bgcpl-darkscore-select -i bgcpl-darkscore_output.csv -e plasma-apply-wallpaperimage -l -d
+./wpu-darkscore-select -i wpu-darkscore_output.csv -e plasma-apply-wallpaperimage -l -d
 ```
 
 <details><summary>Usages</summary>
@@ -132,7 +132,7 @@ select wallpaper from csv file based on time of day and darkness score (night = 
 Optional arguments:
   -h, --help            shows help message and exits
   -v, --version         prints version information and exits
-  -i, --input file.csv  csv file that was made by bgcpl-darkscore [required]
+  -i, --input file.csv  csv file that was made by wpu-darkscore [required]
   -e, --exec            pass image to a command and execute (e.g. plasma-apply-wallpaperimage) [nargs=0..1] [default: ""]
   -d, --daemon          run daemon in the background
   -l, --loop            loop logic for setting wallpapers
@@ -144,13 +144,13 @@ Optional arguments:
 
 ---
 
-## bgcpl-validator
+## wpu-validator
 
 ### Examples
 
 ```bash
-./bgcpl-validator -i wallpapers -d      # delete corrupt images in wallpapers dir
-./bgcpl-validator -i wallpapers -m      # move corrupt images to corrupted_images
+./wpu-validator -i wallpapers -d      # delete corrupt images in wallpapers dir
+./wpu-validator -i wallpapers -m      # move corrupt images to corrupted_images
 ```
 
 <details><summary>Usage</summary>
@@ -173,8 +173,8 @@ Optional arguments:
 
 ---
 
-## bgcpl-palette
+## wpu-palette
 
 ```console
-./bgcpl-palette <file.png/jpg/...> [num colors]
+./wpu-palette <file.png/jpg/...> [num colors]
 ```
