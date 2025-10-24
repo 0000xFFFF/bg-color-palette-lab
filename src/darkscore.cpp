@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
         .help("Path to output CSV file");
 
 
-    program.add_argument("--sortd", "--sort")
+    program.add_argument("--sort", "--sortd")
         .default_value(false)
         .implicit_value(true)
         .help("Sort output by darkness score descending order");
@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
 
     processImages(images);
 
-    if (program.get<bool>("--sort")) {
+    if (program.get<bool>("--sort") || program.get<bool>("--sortd")) {
         std::sort(results.begin(), results.end(), [](auto& a, auto& b) { return a.score > b.score; });
     }
 
