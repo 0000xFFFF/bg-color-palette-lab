@@ -1,9 +1,11 @@
 #include "globals.hpp"
 #include <algorithm>
 #include <argparse/argparse.hpp>
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
+#include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <opencv2/opencv.hpp>
@@ -13,9 +15,13 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <termios.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
+
+std::atomic<bool> skipSleep(false);
 
 void daemonize()
 {
@@ -231,6 +237,45 @@ std::string trim(const std::string& str)
     return str.substr(first, (last - first + 1));
 }
 
+// Execute command directly without shell to avoid escaping issues
+bool executeCommand(const std::string& program, const std::string& filePath)
+{
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        std::cerr << "Fork failed" << std::endl;
+        return false;
+    }
+
+    if (pid == 0) {
+        // Child process
+        // Execute the command directly
+        execlp(program.c_str(), program.c_str(), filePath.c_str(), nullptr);
+
+        // If execlp returns, it failed
+        std::cerr << "Failed to execute: " << program << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // Parent process
+        int status;
+        waitpid(pid, &status, 0);
+
+        if (WIFEXITED(status)) {
+            int exitCode = WEXITSTATUS(status);
+            if (exitCode != 0) {
+                std::cerr << "Warning: Command exited with status: " << exitCode << std::endl;
+                return false;
+            }
+            return true;
+        }
+        else {
+            std::cerr << "Warning: Command did not exit normally" << std::endl;
+            return false;
+        }
+    }
+}
+
 void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& chosen, int hour)
 {
     std::time_t now = std::time(nullptr);
@@ -240,11 +285,68 @@ void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& c
               << " | Score: " << chosen.score << std::endl;
 
     if (!execStr.empty()) {
-        std::string command = execStr + " " + chosen.filePath;
-        int result = system(command.c_str());
-        if (result != 0) {
-            std::cerr << "Warning: Command execution returned non-zero status: " << result << std::endl;
+        executeCommand(execStr, chosen.filePath);
+    }
+}
+
+// Set terminal to non-blocking mode
+void setNonBlockingInput(bool enable)
+{
+    static struct termios old_tio, new_tio;
+    static bool initialized = false;
+
+    if (enable) {
+        if (!initialized) {
+            tcgetattr(STDIN_FILENO, &old_tio);
+            new_tio = old_tio;
+            new_tio.c_lflag &= ~(ICANON | ECHO);
+            initialized = true;
         }
+        tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+
+        // Set stdin to non-blocking
+        int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+        fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+    }
+    else {
+        if (initialized) {
+            tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+
+            // Restore blocking mode
+            int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+            fcntl(STDIN_FILENO, F_SETFL, flags & ~O_NONBLOCK);
+        }
+    }
+}
+
+// Check if user pressed a key
+bool checkKeyPress()
+{
+    char c;
+    int n = read(STDIN_FILENO, &c, 1);
+    return n > 0;
+}
+
+// Sleep with ability to skip on keypress
+void interruptibleSleep(int sleepMs)
+{
+    const int checkIntervalMs = 100; // Check for input every 100ms
+    int elapsed = 0;
+
+    std::cout << "Sleeping for " << (sleepMs / 1000) << "s (press any key to skip)..." << std::endl;
+
+    while (elapsed < sleepMs) {
+        if (checkKeyPress()) {
+            std::cout << "Sleep interrupted by user!" << std::endl;
+            // Clear any remaining input
+            char c;
+            while (read(STDIN_FILENO, &c, 1) > 0);
+            return;
+        }
+
+        int sleepTime = std::min(checkIntervalMs, sleepMs - elapsed);
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+        elapsed += sleepTime;
     }
 }
 
@@ -323,6 +425,11 @@ int main(int argc, char* argv[])
 
     // Main execution logic
     if (isLoop || isDaemon) {
+        // Enable non-blocking input for loop mode (but not daemon mode)
+        if (isLoop && !isDaemon) {
+            setNonBlockingInput(true);
+        }
+
         // Create bucket iterator for sequential iteration
         BucketIterator iterator(buckets);
 
@@ -337,13 +444,23 @@ int main(int argc, char* argv[])
                 auto chosen = iterator.getNext(targetBucket);
                 executeWallpaperChange(execStr, chosen, hour);
 
-                // Sleep for specified duration
-                std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+                // Sleep with ability to skip (only in loop mode, not daemon)
+                if (isLoop && !isDaemon) {
+                    interruptibleSleep(sleepMs);
+                }
+                else {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+                }
             }
             catch (const std::exception& e) {
                 std::cerr << "Error in loop: " << e.what() << std::endl;
                 std::this_thread::sleep_for(std::chrono::seconds(60)); // Wait before retrying
             }
+        }
+
+        // Restore terminal settings (won't reach here normally)
+        if (isLoop && !isDaemon) {
+            setNonBlockingInput(false);
         }
     }
     else {
