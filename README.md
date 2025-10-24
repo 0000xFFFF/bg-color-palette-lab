@@ -24,7 +24,7 @@ sudo make install
 # Give darkness score for images and write to csv, sort output.
 ./bgcpl-darkscore -i <input_dir> -o output.csv --sort
 
-# Read the previous file and set wallpaper based on time of day .
+# Read the previous file and set wallpaper based on time of day (night time = dark wallpaper, day time = bright wallpaper).
 ./bgcpl-darkscore-select -i output.csv --exec plasma-apply-wallpaperimage
 
 # Show most dominant colors in image and make a color palette.
