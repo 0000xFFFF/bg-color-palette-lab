@@ -1,14 +1,80 @@
+#include "globals.hpp"
 #include <argparse/argparse.hpp>
+#include <cstdlib>
 #include <ctime>
 #include <fstream>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <random>
+#include <signal.h>
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <vector>
 
-#include "globals.hpp"
+void daemonize()
+{
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        std::cerr << "Fork failed\n";
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {
+        // Parent exits
+        exit(EXIT_SUCCESS);
+    }
+
+    // Child continues
+    if (setsid() < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    // Catch, ignore, or handle signals here if needed
+    signal(SIGCHLD, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
+
+    // Fork again to prevent reacquiring a terminal
+    pid = fork();
+    if (pid < 0) exit(EXIT_FAILURE);
+    if (pid > 0) exit(EXIT_SUCCESS);
+
+    // Set new file permissions
+    umask(0);
+
+    // Change working directory to root
+    chdir("/");
+
+    // Close standard file descriptors
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    // Optionally redirect stdout/stderr to a log file
+    std::ofstream log("/tmp/daemon.log", std::ios::app);
+    if (log.is_open()) {
+        std::cout.rdbuf(log.rdbuf());
+        std::cerr.rdbuf(log.rdbuf());
+    }
+}
+
+void setup_daemon() {
+
+    daemonize();
+
+    // Daemon main loop
+    while (true) {
+        // Example task: write timestamp to log
+        std::ofstream log("/tmp/darkscore-select.log", std::ios::app);
+        if (log.is_open()) {
+            log << "Daemon running...\n";
+        }
+        sleep(5);
+    }
+}
 
 // Map darkness score (0=bright, 1=dark)
 // bucket 0-5 (0=darkest, 5=brightest)
@@ -31,10 +97,10 @@ int getTargetBucketForHour(int hour)
     if (hour >= 17) return 3; // mid-bright
     if (hour >= 16) return 4; // bright
     if (hour >= 12) return 2; // very bright
-    if (hour >= 9) return 2; // bright
-    if (hour >= 7) return 2; // mid-dark
-    if (hour >= 5) return 1; // dark
-    if (hour >= 0) return 0; // very dark
+    if (hour >= 9) return 2;  // bright
+    if (hour >= 7) return 2;  // mid-dark
+    if (hour >= 5) return 1;  // dark
+    if (hour >= 0) return 0;  // very dark
     return 0;
 }
 
@@ -54,6 +120,8 @@ std::vector<std::string> split(const std::string& line, char delimiter)
     return tokens;
 }
 
+constexpr int LOOP_SLEEP_MS = 1000 * 60 * 1; // 1 min
+
 int main(int argc, char* argv[])
 {
     argparse::ArgumentParser program("darkscore-select", VERSION);
@@ -67,6 +135,22 @@ int main(int argc, char* argv[])
         .help("pass image to a command and execute (e.g. plasma-apply-wallpaperimage <image>) (this calls system so make sure you pass valid command)")
         .metavar("file.csv")
         .default_value("");
+
+    program.add_argument("-d", "--daemon", "--sort", "--sortd")
+        .default_value(false)
+        .implicit_value(true)
+        .help("run daemon in the background");
+
+    program.add_argument("-l", "--loop")
+        .default_value(false)
+        .implicit_value(true)
+        .help("loop logic for setting wallpapers");
+
+    program.add_argument("-s", "--sleep")
+        .help("sleep ms for loop")
+        .metavar("sleep ms")
+        .default_value(LOOP_SLEEP_MS)
+        .scan<'i', int>();
 
     try {
         program.parse_args(argc, argv);
@@ -107,6 +191,7 @@ int main(int argc, char* argv[])
         int b = getDarknessBucket(image.score);
         buckets[b].push_back(image);
     }
+
 
     std::time_t now = std::time(nullptr);
     std::tm* local = std::localtime(&now);
