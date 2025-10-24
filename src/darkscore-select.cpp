@@ -13,6 +13,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include <thread>
+#include <chrono>
 
 void daemonize()
 {
@@ -53,26 +55,11 @@ void daemonize()
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
 
-    // Optionally redirect stdout/stderr to a log file
-    std::ofstream log("/tmp/daemon.log", std::ios::app);
+    // Redirect stdout/stderr to a log file
+    std::ofstream log("/tmp/darkscore-select.log", std::ios::app);
     if (log.is_open()) {
         std::cout.rdbuf(log.rdbuf());
         std::cerr.rdbuf(log.rdbuf());
-    }
-}
-
-void setup_daemon() {
-
-    daemonize();
-
-    // Daemon main loop
-    while (true) {
-        // Example task: write timestamp to log
-        std::ofstream log("/tmp/darkscore-select.log", std::ios::app);
-        if (log.is_open()) {
-            log << "Daemon running...\n";
-        }
-        sleep(5);
     }
 }
 
@@ -120,61 +107,19 @@ std::vector<std::string> split(const std::string& line, char delimiter)
     return tokens;
 }
 
-constexpr int LOOP_SLEEP_MS = 1000 * 60 * 1; // 1 min
-
-int main(int argc, char* argv[])
+std::vector<std::vector<DarkScoreResult>> loadBuckets(const std::string& inputPath)
 {
-    argparse::ArgumentParser program("darkscore-select", VERSION);
-    program.add_description("select wallpaper from csv file based on time of day and darkness score (night = dark, day = bright)");
-    program.add_argument("-i", "--input")
-        .required()
-        .help("csv file that was made by bgcpl-darkscore")
-        .metavar("file.csv");
-
-    program.add_argument("-e", "--exec")
-        .help("pass image to a command and execute (e.g. plasma-apply-wallpaperimage <image>) (this calls system so make sure you pass valid command)")
-        .metavar("file.csv")
-        .default_value("");
-
-    program.add_argument("-d", "--daemon", "--sort", "--sortd")
-        .default_value(false)
-        .implicit_value(true)
-        .help("run daemon in the background");
-
-    program.add_argument("-l", "--loop")
-        .default_value(false)
-        .implicit_value(true)
-        .help("loop logic for setting wallpapers");
-
-    program.add_argument("-s", "--sleep")
-        .help("sleep ms for loop")
-        .metavar("sleep ms")
-        .default_value(LOOP_SLEEP_MS)
-        .scan<'i', int>();
-
-    try {
-        program.parse_args(argc, argv);
-    }
-    catch (const std::runtime_error& err) {
-        std::cout << err.what() << std::endl;
-        std::cout << program;
-        return 1;
-    }
-
-    std::string inputPath = program.get<std::string>("input");
-
+    std::vector<std::vector<DarkScoreResult>> buckets(6);
+    
     std::ifstream file(inputPath);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file " << inputPath << std::endl;
-        return 1;
+        return buckets;
     }
 
-    std::vector<std::vector<DarkScoreResult>> buckets(6);
-
-    // parse images from csv
-    std::vector<DarkScoreResult> images;
     std::string line;
     if (getline(file, line)) {} // skip header
+    
     while (getline(file, line)) {
         std::vector<std::string> fields = split(line, CSV_DELIM);
         if (fields.size() < 2) continue;
@@ -191,11 +136,12 @@ int main(int argc, char* argv[])
         int b = getDarknessBucket(image.score);
         buckets[b].push_back(image);
     }
+    
+    return buckets;
+}
 
-
-    std::time_t now = std::time(nullptr);
-    std::tm* local = std::localtime(&now);
-    int hour = local->tm_hour;
+DarkScoreResult selectWallpaper(const std::vector<std::vector<DarkScoreResult>>& buckets, int hour)
+{
     int targetBucket = getTargetBucketForHour(hour);
 
     // fallback: look for nearest non-empty bucket
@@ -216,29 +162,169 @@ int main(int argc, char* argv[])
     }
 
     if (buckets[chosenBucket].empty()) {
-        std::cerr << "No wallpapers available in any brightness bucket!" << std::endl;
-        return 1;
-    }
-
-    std::cout << "Map darkness score (0=bright, 1=dark) → bucket 0-5 (0=darkest, 5=brightest)" << std::endl;
-
-    for (size_t i = 0; i < buckets.size(); i++) {
-        std::cout << "bucket " << i << " has " << buckets[i].size() << " images" << std::endl;
+        throw std::runtime_error("No wallpapers available in any brightness bucket!");
     }
 
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(0, static_cast<int>(buckets[chosenBucket].size()) - 1);
-    const auto& chosen = buckets[chosenBucket][dist(gen)];
+    
+    return buckets[chosenBucket][dist(gen)];
+}
 
-    std::cout << "Current hour: " << hour << std::endl;
-    std::cout << "Target bucket: " << targetBucket << " (used " << chosenBucket << ")\n";
-    std::cout << "Selected wallpaper: " << chosen.filePath << "\n";
-    std::cout << "Darkness score: " << chosen.score << std::endl;
+void printBucketInfo(const std::vector<std::vector<DarkScoreResult>>& buckets)
+{
+    std::cout << "Map darkness score (0=bright, 1=dark) → bucket 0-5 (0=darkest, 5=brightest)" << std::endl;
+    for (size_t i = 0; i < buckets.size(); i++) {
+        std::cout << "bucket " << i << " has " << buckets[i].size() << " images" << std::endl;
+    }
+}
 
-    std::string execStr = program.get<std::string>("exec");
+std::string trim(const std::string& str) {
+    const std::string whitespace = " \n\r\t\f\v";
+    const auto first = str.find_first_not_of(whitespace);
+    if (first == std::string::npos) return "";
+    const auto last = str.find_last_not_of(whitespace);
+    return str.substr(first, (last - first + 1));
+}
+
+void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& chosen, int hour)
+{
+    std::time_t now = std::time(nullptr);
+    std::cout << "[" << trim(std::string(std::ctime(&now))) << "] ";
+    std::cout << "Hour: " << hour 
+              << " | Selected: " << chosen.filePath 
+              << " | Score: " << chosen.score << std::endl;
+
     if (!execStr.empty()) {
-        system(std::string(execStr + " " + chosen.filePath).c_str());
+        std::string command = execStr + " " + chosen.filePath;
+        int result = system(command.c_str());
+        if (result != 0) {
+            std::cerr << "Warning: Command execution returned non-zero status: " << result << std::endl;
+        }
+    }
+}
+
+constexpr int LOOP_SLEEP_MS = 1000 * 60 * 1; // 1 min
+
+int main(int argc, char* argv[])
+{
+    argparse::ArgumentParser program("darkscore-select", VERSION);
+    program.add_description("select wallpaper from csv file based on time of day and darkness score (night = dark, day = bright)");
+    program.add_argument("-i", "--input")
+        .required()
+        .help("csv file that was made by bgcpl-darkscore")
+        .metavar("file.csv");
+
+    program.add_argument("-e", "--exec")
+        .help("pass image to a command and execute (e.g. plasma-apply-wallpaperimage <image>)")
+        .metavar("command")
+        .default_value("");
+
+    program.add_argument("-d", "--daemon")
+        .default_value(false)
+        .implicit_value(true)
+        .help("run daemon in the background");
+
+    program.add_argument("-l", "--loop")
+        .default_value(false)
+        .implicit_value(true)
+        .help("loop logic for setting wallpapers");
+
+    program.add_argument("-s", "--sleep")
+        .help("sleep ms for loop")
+        .metavar("sleep_ms")
+        .default_value(LOOP_SLEEP_MS)
+        .scan<'i', int>();
+
+    try {
+        program.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error& err) {
+        std::cout << err.what() << std::endl;
+        std::cout << program;
+        return 1;
+    }
+
+    std::string inputPath = program.get<std::string>("input");
+    std::string execStr = program.get<std::string>("exec");
+    bool isDaemon = program.get<bool>("daemon");
+    bool isLoop = program.get<bool>("loop");
+    int sleepMs = program.get<int>("sleep");
+
+    // Daemonize if requested
+    if (isDaemon) {
+        daemonize();
+    }
+
+    // Load buckets once
+    auto buckets = loadBuckets(inputPath);
+    
+    // Check if any buckets have images
+    bool hasImages = false;
+    for (const auto& bucket : buckets) {
+        if (!bucket.empty()) {
+            hasImages = true;
+            break;
+        }
+    }
+    
+    if (!hasImages) {
+        std::cerr << "Error: No valid images found in CSV file!" << std::endl;
+        return 1;
+    }
+
+    if (!isDaemon && !isLoop) {
+        printBucketInfo(buckets);
+    }
+
+    // Main execution logic
+    if (isLoop || isDaemon) {
+        // Loop mode: continuously select and change wallpaper
+        while (true) {
+            try {
+                std::time_t now = std::time(nullptr);
+                std::tm* local = std::localtime(&now);
+                int hour = local->tm_hour;
+
+                auto chosen = selectWallpaper(buckets, hour);
+                executeWallpaperChange(execStr, chosen, hour);
+
+                // Sleep for specified duration
+                std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+            }
+            catch (const std::exception& e) {
+                std::cerr << "Error in loop: " << e.what() << std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(60)); // Wait before retrying
+            }
+        }
+    }
+    else {
+        // Single execution mode
+        std::time_t now = std::time(nullptr);
+        std::tm* local = std::localtime(&now);
+        int hour = local->tm_hour;
+
+        try {
+            auto chosen = selectWallpaper(buckets, hour);
+            
+            int targetBucket = getTargetBucketForHour(hour);
+            int chosenBucket = getDarknessBucket(chosen.score);
+            
+            std::cout << "Current hour: " << hour << std::endl;
+            std::cout << "Target bucket: " << targetBucket << " (used " << chosenBucket << ")\n";
+            std::cout << "Selected wallpaper: " << chosen.filePath << "\n";
+            std::cout << "Darkness score: " << chosen.score << std::endl;
+
+            if (!execStr.empty()) {
+                std::string command = execStr + " \"" + chosen.filePath + "\"";
+                system(command.c_str());
+            }
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
     }
 
     return 0;
