@@ -13,7 +13,7 @@ PALETTE_FILES = src/palette.cpp
 GROUPER_FILES = src/grouper.cpp src/utils.cpp
 VALIDATOR_FILES = src/validator.cpp src/utils.cpp
 DARKSCORE_FILES = src/darkscore.cpp src/utils.cpp
-DARKSCORE-SELECT_FILES = src/darkscore-select.cpp
+DARKSCORE-SELECT_FILES = src/darkscore-select.cpp src/utils.cpp
 
 palette: $(PALETTE_FILES)
 	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(PALETTE_FILES) -o bgcpl-palette

@@ -1,7 +1,6 @@
 #include "globals.hpp"
 #include <algorithm>
 #include <argparse/argparse.hpp>
-#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
@@ -11,17 +10,13 @@
 #include <opencv2/opencv.hpp>
 #include <random>
 #include <signal.h>
-#include <sstream>
 #include <string>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <termios.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
 
-std::atomic<bool> skipSleep(false);
+#include "utils.hpp"
 
 void daemonize()
 {
@@ -103,17 +98,6 @@ struct DarkScoreResult {
     double score;
 };
 
-std::vector<std::string> split(const std::string& line, char delimiter)
-{
-    std::vector<std::string> tokens;
-    std::string token;
-    std::stringstream ss(line);
-    while (getline(ss, token, delimiter)) {
-        tokens.push_back(token);
-    }
-    return tokens;
-}
-
 std::vector<std::vector<DarkScoreResult>> loadBuckets(const std::string& inputPath)
 {
     std::vector<std::vector<DarkScoreResult>> buckets(6);
@@ -128,7 +112,7 @@ std::vector<std::vector<DarkScoreResult>> loadBuckets(const std::string& inputPa
     if (getline(file, line)) {} // skip header
 
     while (getline(file, line)) {
-        std::vector<std::string> fields = split(line, CSV_DELIM);
+        std::vector<std::string> fields = csv_split(line, CSV_DELIM);
         if (fields.size() < 2) continue;
 
         DarkScoreResult image;
@@ -228,61 +212,6 @@ void printBucketInfo(const std::vector<std::vector<DarkScoreResult>>& buckets)
     }
 }
 
-std::string trim(const std::string& str)
-{
-    const std::string whitespace = " \n\r\t\f\v";
-    const auto first = str.find_first_not_of(whitespace);
-    if (first == std::string::npos) return "";
-    const auto last = str.find_last_not_of(whitespace);
-    return str.substr(first, (last - first + 1));
-}
-
-// Execute command directly without shell to avoid escaping issues
-bool executeCommand(const std::string& program, const std::string& filePath)
-{
-    pid_t pid = fork();
-
-    if (pid < 0) {
-        std::cerr << "Fork failed" << std::endl;
-        return false;
-    }
-
-    if (pid == 0) {
-        // Child process
-        // Redirect stdout/stderr to /dev/null in child to avoid issues
-        int devnull = open("/dev/null", O_WRONLY);
-        if (devnull != -1) {
-            dup2(devnull, STDOUT_FILENO);
-            dup2(devnull, STDERR_FILENO);
-            close(devnull);
-        }
-
-        // Execute the command directly
-        execlp(program.c_str(), program.c_str(), filePath.c_str(), nullptr);
-
-        // If execlp returns, it failed
-        exit(EXIT_FAILURE);
-    }
-    else {
-        // Parent process
-        int status;
-        waitpid(pid, &status, 0);
-
-        if (WIFEXITED(status)) {
-            int exitCode = WEXITSTATUS(status);
-            if (exitCode != 0) {
-                std::cerr << "Warning: Command exited with status: " << exitCode << std::endl;
-                return false;
-            }
-            return true;
-        }
-        else {
-            std::cerr << "Warning: Command did not exit normally" << std::endl;
-            return false;
-        }
-    }
-}
-
 void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& chosen, int hour)
 {
     std::time_t now = std::time(nullptr);
@@ -293,36 +222,6 @@ void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& c
 
     if (!execStr.empty()) {
         executeCommand(execStr, chosen.filePath);
-    }
-}
-
-// Set terminal to non-blocking mode
-void setNonBlockingInput(bool enable)
-{
-    static struct termios old_tio, new_tio;
-    static bool initialized = false;
-
-    if (enable) {
-        if (!initialized) {
-            tcgetattr(STDIN_FILENO, &old_tio);
-            new_tio = old_tio;
-            new_tio.c_lflag &= ~(ICANON | ECHO);
-            initialized = true;
-        }
-        tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
-
-        // Set stdin to non-blocking
-        int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-        fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-    }
-    else {
-        if (initialized) {
-            tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
-
-            // Restore blocking mode
-            int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-            fcntl(STDIN_FILENO, F_SETFL, flags & ~O_NONBLOCK);
-        }
     }
 }
 

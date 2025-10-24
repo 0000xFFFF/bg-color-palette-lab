@@ -2,10 +2,15 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <fcntl.h>
 #include <filesystem>
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <termios.h>
 #include <vector>
 
 std::vector<std::string> supportedExtensions = {
@@ -50,7 +55,8 @@ size_t scanFolder(std::vector<std::string>& imageFiles, const std::string& folde
     return totalCount;
 }
 
-size_t getImages(std::vector<std::string>& images, const std::string& inputPath) {
+size_t getImages(std::vector<std::string>& images, const std::string& inputPath)
+{
 
     if (std::filesystem::is_regular_file(inputPath)) {
         images.push_back(inputPath);
@@ -60,7 +66,6 @@ size_t getImages(std::vector<std::string>& images, const std::string& inputPath)
     }
     return images.size();
 }
-
 
 std::string formatTime(int seconds)
 {
@@ -87,3 +92,97 @@ namespace Cursor {
     void cr() { std::cout << "\r" << std::flush; }
 
 }; // namespace Cursor
+
+std::vector<std::string> csv_split(const std::string& line, char delimiter)
+{
+    std::vector<std::string> tokens;
+    std::string token;
+    std::stringstream ss(line);
+    while (getline(ss, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+void setNonBlockingInput(bool enable)
+{
+    static struct termios old_tio, new_tio;
+    static bool initialized = false;
+
+    if (enable) {
+        if (!initialized) {
+            tcgetattr(STDIN_FILENO, &old_tio);
+            new_tio = old_tio;
+            new_tio.c_lflag &= ~(ICANON | ECHO);
+            initialized = true;
+        }
+        tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+
+        // Set stdin to non-blocking
+        int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+        fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+    }
+    else {
+        if (initialized) {
+            tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+
+            // Restore blocking mode
+            int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+            fcntl(STDIN_FILENO, F_SETFL, flags & ~O_NONBLOCK);
+        }
+    }
+}
+
+std::string trim(const std::string& str)
+{
+    const std::string whitespace = " \n\r\t\f\v";
+    const auto first = str.find_first_not_of(whitespace);
+    if (first == std::string::npos) return "";
+    const auto last = str.find_last_not_of(whitespace);
+    return str.substr(first, (last - first + 1));
+}
+
+bool executeCommand(const std::string& program, const std::string& filePath)
+{
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        std::cerr << "Fork failed" << std::endl;
+        return false;
+    }
+
+    if (pid == 0) {
+        // Child process
+        // Redirect stdout/stderr to /dev/null in child to avoid issues
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull != -1) {
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+
+        // Execute the command directly
+        execlp(program.c_str(), program.c_str(), filePath.c_str(), nullptr);
+
+        // If execlp returns, it failed
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // Parent process
+        int status;
+        waitpid(pid, &status, 0);
+
+        if (WIFEXITED(status)) {
+            int exitCode = WEXITSTATUS(status);
+            if (exitCode != 0) {
+                std::cerr << "Warning: Command exited with status: " << exitCode << std::endl;
+                return false;
+            }
+            return true;
+        }
+        else {
+            std::cerr << "Warning: Command did not exit normally" << std::endl;
+            return false;
+        }
+    }
+}

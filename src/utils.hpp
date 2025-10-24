@@ -15,3 +15,8 @@ namespace Cursor {
     void show();
     void cr();
 }; // namespace Cursor
+
+std::vector<std::string> csv_split(const std::string& line, char delimiter);
+std::string trim(const std::string& str);
+void setNonBlockingInput(bool enable);
+bool executeCommand(const std::string& program, const std::string& filePath);
