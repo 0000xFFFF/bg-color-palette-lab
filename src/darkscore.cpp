@@ -170,6 +170,7 @@ void processImages(std::vector<std::string>& images)
 
 int main(int argc, char* argv[])
 {
+    freopen("/dev/null", "w", stderr); // suppress errors
 
     argparse::ArgumentParser program("darkscore", VERSION);
     program.add_description("give darkness score for wallpapers");
