@@ -7,6 +7,11 @@
 
 #include "globals.hpp"
 
+struct DarkScoreResult {
+    std::string filePath;
+    double score;
+};
+
 std::vector<std::string> split(const std::string& line, char delimiter)
 {
     std::vector<std::string> tokens;
@@ -37,7 +42,6 @@ int main(int argc, char* argv[])
     }
 
     std::string inputPath = program.get<std::string>("--input");
-    std::vector<std::string> images;
 
     std::ifstream file(inputPath);
     if (!file.is_open()) {
@@ -45,19 +49,22 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // parse images from csv
+    std::vector<DarkScoreResult> images;
     std::string line;
     if (getline(file, line)) {} // skip header
-
     while (getline(file, line)) {
         std::vector<std::string> fields = split(line, CSV_DELIM);
 
-        // Print parsed fields
+        DarkScoreResult image;
         for (size_t i = 0; i < fields.size(); ++i) {
-            std::cout << "[" << fields[i] << "]";
-            if (i < fields.size() - 1) std::cout << " ";
+            if (i == 0) { image.filePath = fields[0]; }
+            if (i == 1) { image.score = std::stod(fields[1]); }
         }
         std::cout << std::endl;
     }
+
+
 
     return 0;
 }
