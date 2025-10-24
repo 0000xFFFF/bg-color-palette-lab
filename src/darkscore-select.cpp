@@ -11,6 +11,7 @@
 #include <random>
 #include <signal.h>
 #include <string>
+#include <filesystem>
 #include <sys/stat.h>
 #include <thread>
 #include <unistd.h>
@@ -302,6 +303,14 @@ int main(int argc, char* argv[])
     bool isDaemon = program.get<bool>("daemon");
     bool isLoop = program.get<bool>("loop");
     int sleepMs = program.get<int>("sleep");
+
+    try {
+        inputPath = std::filesystem::canonical(inputPath).string();
+    }
+    catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Error: Could not resolve path: " << inputPath << " - " << e.what() << std::endl;
+        return 1;
+    }
 
     // Daemonize if requested
     if (isDaemon) {
