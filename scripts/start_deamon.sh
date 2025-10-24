@@ -6,4 +6,3 @@ else
     echo "Process is not running, starting..."
     wpu-darkscore-select -i "/media/SSD/media/bg/wpu-darkscore_output.csv" -e plasma-apply-wallpaperimage -l -d
 fi
-
