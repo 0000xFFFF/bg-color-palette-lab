@@ -11,7 +11,7 @@
 - make
 - clang++
 - OpenCV (libopencv)
-- argparse
+- [argparse](https://github.com/p-ranav/argparse)
 
 ## Build & Install
 
