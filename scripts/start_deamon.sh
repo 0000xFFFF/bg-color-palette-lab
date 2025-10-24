@@ -1,4 +1,4 @@
-##!/usr/bin/env bash
+#!/usr/bin/env bash
 
 if pgrep -f "wpu-darkscore-select" ; then
     echo "Process is running"
