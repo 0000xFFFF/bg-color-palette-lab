@@ -317,10 +317,7 @@ int main(int argc, char* argv[])
             std::cout << "Selected wallpaper: " << chosen.filePath << "\n";
             std::cout << "Darkness score: " << chosen.score << std::endl;
 
-            if (!execStr.empty()) {
-                std::string command = execStr + " \"" + chosen.filePath + "\"";
-                system(command.c_str());
-            }
+            executeWallpaperChange(execStr, chosen, hour);
         }
         catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
