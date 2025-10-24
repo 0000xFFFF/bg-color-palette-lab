@@ -1,4 +1,5 @@
 #include "globals.hpp"
+#include <algorithm>
 #include <argparse/argparse.hpp>
 #include <chrono>
 #include <cstdlib>
@@ -140,37 +141,78 @@ std::vector<std::vector<DarkScoreResult>> loadBuckets(const std::string& inputPa
     return buckets;
 }
 
-DarkScoreResult selectWallpaper(const std::vector<std::vector<DarkScoreResult>>& buckets, int hour)
-{
-    int targetBucket = getTargetBucketForHour(hour);
+// State tracker for sequential iteration through buckets
+struct BucketIterator {
+    std::vector<std::vector<DarkScoreResult>> shuffledBuckets;
+    std::vector<size_t> currentIndices; // Current position in each bucket
+    int lastUsedBucket;
+    std::mt19937 rng;
 
-    // fallback: look for nearest non-empty bucket
-    int chosenBucket = targetBucket;
-    int offset = 0;
-    while (buckets[chosenBucket].empty() && offset < 6) {
-        offset++;
-        int up = targetBucket + offset;
-        int down = targetBucket - offset;
-        if (up < 6 && !buckets[up].empty()) {
-            chosenBucket = up;
-            break;
-        }
-        if (down >= 0 && !buckets[down].empty()) {
-            chosenBucket = down;
-            break;
+    BucketIterator(const std::vector<std::vector<DarkScoreResult>>& buckets)
+        : shuffledBuckets(buckets), currentIndices(6, 0), lastUsedBucket(-1)
+    {
+        std::random_device rd;
+        rng.seed(rd());
+
+        // Shuffle all buckets initially
+        for (auto& bucket : shuffledBuckets) {
+            std::shuffle(bucket.begin(), bucket.end(), rng);
         }
     }
 
-    if (buckets[chosenBucket].empty()) {
-        throw std::runtime_error("No wallpapers available in any brightness bucket!");
+    DarkScoreResult getNext(int targetBucket)
+    {
+        // Find the actual bucket to use (with fallback logic)
+        int chosenBucket = targetBucket;
+        int offset = 0;
+        while (shuffledBuckets[chosenBucket].empty() && offset < 6) {
+            offset++;
+            int up = targetBucket + offset;
+            int down = targetBucket - offset;
+            if (up < 6 && !shuffledBuckets[up].empty()) {
+                chosenBucket = up;
+                break;
+            }
+            if (down >= 0 && !shuffledBuckets[down].empty()) {
+                chosenBucket = down;
+                break;
+            }
+        }
+
+        if (shuffledBuckets[chosenBucket].empty()) {
+            throw std::runtime_error("No wallpapers available in any brightness bucket!");
+        }
+
+        // If bucket changed, reset and reshuffle the new bucket
+        if (chosenBucket != lastUsedBucket) {
+            std::cout << "Bucket changed from " << lastUsedBucket
+                      << " to " << chosenBucket
+                      << ", reshuffling..." << std::endl;
+            currentIndices[chosenBucket] = 0;
+            std::shuffle(shuffledBuckets[chosenBucket].begin(),
+                         shuffledBuckets[chosenBucket].end(),
+                         rng);
+            lastUsedBucket = chosenBucket;
+        }
+
+        // Get current wallpaper from bucket
+        size_t& currentIdx = currentIndices[chosenBucket];
+        const auto& result = shuffledBuckets[chosenBucket][currentIdx];
+
+        // Advance index, wrap around and reshuffle if we've gone through all
+        currentIdx++;
+        if (currentIdx >= shuffledBuckets[chosenBucket].size()) {
+            std::cout << "Reached end of bucket " << chosenBucket
+                      << ", reshuffling..." << std::endl;
+            currentIdx = 0;
+            std::shuffle(shuffledBuckets[chosenBucket].begin(),
+                         shuffledBuckets[chosenBucket].end(),
+                         rng);
+        }
+
+        return result;
     }
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dist(0, static_cast<int>(buckets[chosenBucket].size()) - 1);
-
-    return buckets[chosenBucket][dist(gen)];
-}
+};
 
 void printBucketInfo(const std::vector<std::vector<DarkScoreResult>>& buckets)
 {
@@ -281,14 +323,18 @@ int main(int argc, char* argv[])
 
     // Main execution logic
     if (isLoop || isDaemon) {
+        // Create bucket iterator for sequential iteration
+        BucketIterator iterator(buckets);
+
         // Loop mode: continuously select and change wallpaper
         while (true) {
             try {
                 std::time_t now = std::time(nullptr);
                 std::tm* local = std::localtime(&now);
                 int hour = local->tm_hour;
+                int targetBucket = getTargetBucketForHour(hour);
 
-                auto chosen = selectWallpaper(buckets, hour);
+                auto chosen = iterator.getNext(targetBucket);
                 executeWallpaperChange(execStr, chosen, hour);
 
                 // Sleep for specified duration
@@ -301,16 +347,40 @@ int main(int argc, char* argv[])
         }
     }
     else {
-        // Single execution mode
+        // Single execution mode - just pick randomly for one-time use
         std::time_t now = std::time(nullptr);
         std::tm* local = std::localtime(&now);
         int hour = local->tm_hour;
 
         try {
-            auto chosen = selectWallpaper(buckets, hour);
-
             int targetBucket = getTargetBucketForHour(hour);
-            int chosenBucket = getDarknessBucket(chosen.score);
+
+            // Find the actual bucket to use (with fallback logic)
+            int chosenBucket = targetBucket;
+            int offset = 0;
+            while (buckets[chosenBucket].empty() && offset < 6) {
+                offset++;
+                int up = targetBucket + offset;
+                int down = targetBucket - offset;
+                if (up < 6 && !buckets[up].empty()) {
+                    chosenBucket = up;
+                    break;
+                }
+                if (down >= 0 && !buckets[down].empty()) {
+                    chosenBucket = down;
+                    break;
+                }
+            }
+
+            if (buckets[chosenBucket].empty()) {
+                throw std::runtime_error("No wallpapers available in any brightness bucket!");
+            }
+
+            // Random selection for single execution
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dist(0, static_cast<int>(buckets[chosenBucket].size()) - 1);
+            const auto& chosen = buckets[chosenBucket][dist(gen)];
 
             std::cout << "Current hour: " << hour << std::endl;
             std::cout << "Target bucket: " << targetBucket << " (used " << chosenBucket << ")\n";
