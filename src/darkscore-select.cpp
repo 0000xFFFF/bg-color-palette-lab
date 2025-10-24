@@ -1,5 +1,6 @@
 #include "globals.hpp"
 #include <argparse/argparse.hpp>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -11,10 +12,9 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 #include <vector>
-#include <thread>
-#include <chrono>
 
 void daemonize()
 {
@@ -110,7 +110,7 @@ std::vector<std::string> split(const std::string& line, char delimiter)
 std::vector<std::vector<DarkScoreResult>> loadBuckets(const std::string& inputPath)
 {
     std::vector<std::vector<DarkScoreResult>> buckets(6);
-    
+
     std::ifstream file(inputPath);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file " << inputPath << std::endl;
@@ -119,7 +119,7 @@ std::vector<std::vector<DarkScoreResult>> loadBuckets(const std::string& inputPa
 
     std::string line;
     if (getline(file, line)) {} // skip header
-    
+
     while (getline(file, line)) {
         std::vector<std::string> fields = split(line, CSV_DELIM);
         if (fields.size() < 2) continue;
@@ -136,7 +136,7 @@ std::vector<std::vector<DarkScoreResult>> loadBuckets(const std::string& inputPa
         int b = getDarknessBucket(image.score);
         buckets[b].push_back(image);
     }
-    
+
     return buckets;
 }
 
@@ -168,7 +168,7 @@ DarkScoreResult selectWallpaper(const std::vector<std::vector<DarkScoreResult>>&
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(0, static_cast<int>(buckets[chosenBucket].size()) - 1);
-    
+
     return buckets[chosenBucket][dist(gen)];
 }
 
@@ -180,7 +180,8 @@ void printBucketInfo(const std::vector<std::vector<DarkScoreResult>>& buckets)
     }
 }
 
-std::string trim(const std::string& str) {
+std::string trim(const std::string& str)
+{
     const std::string whitespace = " \n\r\t\f\v";
     const auto first = str.find_first_not_of(whitespace);
     if (first == std::string::npos) return "";
@@ -192,8 +193,8 @@ void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& c
 {
     std::time_t now = std::time(nullptr);
     std::cout << "[" << trim(std::string(std::ctime(&now))) << "] ";
-    std::cout << "Hour: " << hour 
-              << " | Selected: " << chosen.filePath 
+    std::cout << "Hour: " << hour
+              << " | Selected: " << chosen.filePath
               << " | Score: " << chosen.score << std::endl;
 
     if (!execStr.empty()) {
@@ -259,7 +260,7 @@ int main(int argc, char* argv[])
 
     // Load buckets once
     auto buckets = loadBuckets(inputPath);
-    
+
     // Check if any buckets have images
     bool hasImages = false;
     for (const auto& bucket : buckets) {
@@ -268,7 +269,7 @@ int main(int argc, char* argv[])
             break;
         }
     }
-    
+
     if (!hasImages) {
         std::cerr << "Error: No valid images found in CSV file!" << std::endl;
         return 1;
@@ -307,10 +308,10 @@ int main(int argc, char* argv[])
 
         try {
             auto chosen = selectWallpaper(buckets, hour);
-            
+
             int targetBucket = getTargetBucketForHour(hour);
             int chosenBucket = getDarknessBucket(chosen.score);
-            
+
             std::cout << "Current hour: " << hour << std::endl;
             std::cout << "Target bucket: " << targetBucket << " (used " << chosenBucket << ")\n";
             std::cout << "Selected wallpaper: " << chosen.filePath << "\n";
