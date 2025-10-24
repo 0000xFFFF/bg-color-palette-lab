@@ -218,7 +218,7 @@ int main(int argc, char* argv[])
         .metavar("file.csv");
 
     program.add_argument("-e", "--exec")
-        .help("pass image to a command and execute (e.g. plasma-apply-wallpaperimage <image>)")
+        .help("pass image to a command and execute (e.g. plasma-apply-wallpaperimage)")
         .metavar("command")
         .default_value("");
 
