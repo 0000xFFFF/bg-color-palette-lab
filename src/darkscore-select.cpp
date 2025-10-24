@@ -21,7 +21,7 @@ std::vector<std::string> split(const std::string& line, char delimiter)
 int main(int argc, char* argv[])
 {
     argparse::ArgumentParser program("darkscore-select", VERSION);
-    program.add_description("select wallpaper from csv file based on time of day");
+    program.add_description("select wallpaper from csv file based on time of day and darkness score (night = dark, day = bright)");
     program.add_argument("-i", "--input")
         .required()
         .help("csv file that was made by bgcpl-darkscore")
