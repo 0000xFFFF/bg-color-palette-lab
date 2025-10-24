@@ -1,6 +1,5 @@
 # bg-color-palette-lab
-group wallpapers by color palette
-
+group wallpapers by color palette, create palette for image, give darkness score, validate images, ...
 
 ## Requirements
 * make
