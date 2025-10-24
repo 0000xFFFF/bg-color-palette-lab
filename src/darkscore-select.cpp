@@ -249,11 +249,18 @@ bool executeCommand(const std::string& program, const std::string& filePath)
 
     if (pid == 0) {
         // Child process
+        // Redirect stdout/stderr to /dev/null in child to avoid issues
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull != -1) {
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+
         // Execute the command directly
         execlp(program.c_str(), program.c_str(), filePath.c_str(), nullptr);
 
         // If execlp returns, it failed
-        std::cerr << "Failed to execute: " << program << std::endl;
         exit(EXIT_FAILURE);
     }
     else {
@@ -419,19 +426,19 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (!isDaemon && !isLoop) {
+    if (!isDaemon) {
         printBucketInfo(buckets);
     }
 
     // Main execution logic
     if (isLoop || isDaemon) {
+        // Create bucket iterator for sequential iteration
+        BucketIterator iterator(buckets);
+
         // Enable non-blocking input for loop mode (but not daemon mode)
         if (isLoop && !isDaemon) {
             setNonBlockingInput(true);
         }
-
-        // Create bucket iterator for sequential iteration
-        BucketIterator iterator(buckets);
 
         // Loop mode: continuously select and change wallpaper
         while (true) {
