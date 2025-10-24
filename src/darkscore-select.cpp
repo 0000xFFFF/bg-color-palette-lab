@@ -57,6 +57,11 @@ int main(int argc, char* argv[])
         .help("csv file that was made by bgcpl-darkscore")
         .metavar("file.csv");
 
+    program.add_argument("-e", "--exec")
+        .help("pass image to a command and execute (e.g. plasma-apply-wallpaperimage <image>) (this calls system so make sure you pass valid command)")
+        .metavar("file.csv")
+        .default_value("");
+
     try {
         program.parse_args(argc, argv);
     }
@@ -66,7 +71,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    std::string inputPath = program.get<std::string>("--input");
+    std::string inputPath = program.get<std::string>("input");
 
     std::ifstream file(inputPath);
     if (!file.is_open()) {
@@ -139,6 +144,11 @@ int main(int argc, char* argv[])
     std::cout << "Target bucket: " << targetBucket << " (used " << chosenBucket << ")\n";
     std::cout << "Selected wallpaper: " << chosen.filePath << "\n";
     std::cout << "Darkness score: " << chosen.score << std::endl;
+
+    std::string execStr = program.get<std::string>("exec");
+    if (!execStr.empty()) {
+        system(std::string(execStr + " " + chosen.filePath).c_str());
+    }
 
     return 0;
 }
