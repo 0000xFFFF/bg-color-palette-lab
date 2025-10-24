@@ -13,6 +13,7 @@ PALETTE_FILES = src/palette.cpp
 GROUPER_FILES = src/grouper.cpp src/utils.cpp
 VALIDATOR_FILES = src/validator.cpp src/utils.cpp
 DARKSCORE_FILES = src/darkscore.cpp src/utils.cpp
+DARKSCORE-SELECT_FILES = src/darkscore-select.cpp
 
 palette: $(PALETTE_FILES)
 	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(PALETTE_FILES) -o bgcpl-palette
@@ -26,16 +27,20 @@ validator: $(VALIDATOR_FILES)
 darkscore: $(DARKSCORE_FILES)
 	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(DARKSCORE_FILES) -o bgcpl-darkscore
 
+darkscore-select: $(DARKSCORE-SELECT_FILES)
+	$(GCC) $(ARGS) $(RELEASE_ARGS) $(LIBS) $(DARKSCORE-SELECT_FILES) -o bgcpl-darkscore-select
+
 install:
 	install -m 755 bgcpl-palette $(BINDIR)
 	install -m 755 bgcpl-grouper $(BINDIR)
 	install -m 755 bgcpl-validator $(BINDIR)
 	install -m 755 bgcpl-darkscore $(BINDIR)
+	install -m 755 bgcpl-darkscore-select $(BINDIR)
 
 
 clean:
-	rm bgcpl-palette bgcpl-grouper bgcpl-validator bgcpl-darkscore
+	rm bgcpl-palette bgcpl-grouper bgcpl-validator bgcpl-darkscore bgcpl-darkscore-select
 
-all: palette grouper validator darkscore
+all: palette grouper validator darkscore darkscore-select
 
 

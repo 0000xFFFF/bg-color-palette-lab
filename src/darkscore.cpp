@@ -231,7 +231,7 @@ int main(int argc, char* argv[])
         for (const auto& result : results) {
             if (result.score >= 0) {
                 std::cout << result.filePath << " => " << result.score << std::endl;
-                out << result.filePath << "," << result.score << "\n";
+                out << result.filePath << CSV_DELIM << result.score << "\n";
             }
         }
 
