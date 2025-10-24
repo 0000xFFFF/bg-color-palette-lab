@@ -172,17 +172,11 @@ bool executeCommand(const std::string& program, const std::string& filePath)
         int status;
         waitpid(pid, &status, 0);
 
-        if (WIFEXITED(status)) {
-            int exitCode = WEXITSTATUS(status);
-            if (exitCode != 0) {
-                std::cerr << "Warning: Command exited with status: " << exitCode << std::endl;
-                return false;
-            }
-            return true;
-        }
-        else {
-            std::cerr << "Warning: Command did not exit normally" << std::endl;
+        int exitCode = WEXITSTATUS(status);
+        if (exitCode != 0) {
+            std::cerr << "Command exited with status: " << exitCode << std::endl;
             return false;
         }
+        return true;
     }
 }
