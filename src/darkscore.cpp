@@ -174,20 +174,20 @@ int main(int argc, char* argv[])
 
     argparse::ArgumentParser program("darkscore", VERSION);
     program.add_description("give darkness score for wallpapers");
-    program.add_argument("--input")
+    program.add_argument("-i", "--input")
         .required()
         .help("Path to a image file or folder containing images (recursive)");
-    program.add_argument("--output")
+    program.add_argument("-o", "--output")
         .required()
         .help("Path to output CSV file");
 
 
-    program.add_argument("--sort", "--sortd")
+    program.add_argument("-s", "-sd", "--sort", "--sortd")
         .default_value(false)
         .implicit_value(true)
         .help("Sort output by darkness score descending order");
 
-    program.add_argument("--sorta")
+    program.add_argument("-sa", "--sorta")
         .default_value(false)
         .implicit_value(true)
         .help("Sort output by darkness score ascending order");
@@ -202,17 +202,8 @@ int main(int argc, char* argv[])
     }
 
     std::string inputPath = program.get<std::string>("--input");
-
     std::vector<std::string> images;
-
-    if (std::filesystem::is_regular_file(inputPath)) {
-        images.push_back(inputPath);
-    }
-    else if (std::filesystem::is_directory(inputPath)) {
-        scanFolder(images, inputPath);
-    }
-
-
+    getImages(images, inputPath);
     if (images.empty()) {
         std::cerr << "No valid images found." << std::endl;
         return 1;

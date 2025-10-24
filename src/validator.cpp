@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <argparse/argparse.hpp>
 #include <atomic>
 #include <chrono>
 #include <filesystem>
@@ -57,16 +58,10 @@ ValidationResult validateImage(const std::string& imagePath)
     return result;
 }
 
-void processFolder(const std::string& inputFolder)
-{    
+void processImages(std::vector<std::string>& images)
+{
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    std::vector<std::string> images;
-    size_t totalCount = scanFolder(images, inputFolder);
-    if (!(totalCount > 0)) { exit(1); }
-    
-    //results.reserve(totalCount);
-    
     int numThreads = std::thread::hardware_concurrency();
     if (numThreads == 0) numThreads = 4; // Fallback in case detection fails
 
@@ -184,7 +179,7 @@ void processFolder(const std::string& inputFolder)
 
     std::cout << "\nValidation completed in " << duration.count() << "ms" << std::endl;
     std::cout << "Average: " << std::fixed << std::setprecision(2)
-              << (double)duration.count() / totalCount << "ms per image" << std::endl;
+              << (double)duration.count() / images.size() << "ms per image" << std::endl;
     std::cout << "Total files processed: " << results.size() << std::endl;
     std::cout << "Valid images: " << (results.size() - corruptedCount) << std::endl;
     std::cout << "Corrupted/unreadable images: " << corruptedCount << std::endl;
@@ -295,42 +290,72 @@ int main(int argc, char* argv[])
 {
     freopen("/dev/null", "w", stderr); // suppress errors
 
-    std::string inputFolder = "bg";
+    argparse::ArgumentParser program("validator", VERSION);
+    program.add_description("validate images, find corrupt images (and delete them/move them/etc)");
+    program.add_argument("-i", "--input")
+        .required()
+        .help("Path to a image file or folder containing images (recursive)");
 
-    if (argc >= 2) {
-        inputFolder = argv[1];
+    program.add_argument("-m", "--move")
+        .default_value(false)
+        .implicit_value(true)
+        .help("move corrupt files to corrupted_images folder (make one)");
+
+    program.add_argument("-d", "--delete")
+        .default_value(false)
+        .implicit_value(true)
+        .help("delete corrupt files");
+
+    program.add_argument("-p", "--prompt")
+        .default_value(false)
+        .implicit_value(true)
+        .help("prompt what to do after scanning (nothing/delete/move)");
+
+    try {
+        program.parse_args(argc, argv);
     }
-    else {
-        std::cout << VERSION << std::endl;
-        std::cout << "Usage: " << argv[0] << " <folder_path>" << std::endl;
-        std::cout << "Using default folder: " << inputFolder << std::endl;
+    catch (const std::runtime_error& err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        return 1;
     }
 
-    processFolder(inputFolder);
+    int choice = 0;
 
-    if (corruptedCount > 0) {
+    if      (program.get<bool>("delete")) { choice = 1; }
+    else if (program.get<bool>("move"))   { choice = 2; }
 
+    if (program.get<bool>("prompt")) {
         std::cout << "\nWhat would you like to do with corrupted files?" << std::endl;
+        std::cout << "0. Do nothing" << std::endl;
         std::cout << "1. Delete them permanently" << std::endl;
         std::cout << "2. Move them to 'corrupted_images' folder" << std::endl;
-        std::cout << "3. Do nothing" << std::endl;
-        std::cout << "Choice (1/2/3): ";
+        std::cout << "Choice (0/1/2): ";
 
-        int choice;
         std::cin >> choice;
+    }
 
+    std::string inputPath = program.get<std::string>("--input");
+    std::vector<std::string> images;
+    getImages(images, inputPath);
+    if (images.empty()) {
+        std::cerr << "No valid images found." << std::endl;
+        return 1;
+    }
+    results.reserve(images.size());
+
+    processImages(images);
+
+    if (corruptedCount > 0) {
         switch (choice) {
+            case 0:
+                std::cout << "No action taken." << std::endl;
+                break;
             case 1:
                 deleteCorruptedFiles();
                 break;
             case 2:
                 moveCorruptedFiles();
-                break;
-            case 3:
-                std::cout << "No action taken." << std::endl;
-                break;
-            default:
-                std::cout << "Invalid choice. No action taken." << std::endl;
                 break;
         }
     }

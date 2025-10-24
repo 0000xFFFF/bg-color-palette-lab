@@ -50,6 +50,17 @@ size_t scanFolder(std::vector<std::string>& imageFiles, const std::string& folde
     return totalCount;
 }
 
+size_t getImages(std::vector<std::string>& images, const std::string& inputPath) {
+
+    if (std::filesystem::is_regular_file(inputPath)) {
+        images.push_back(inputPath);
+    }
+    else if (std::filesystem::is_directory(inputPath)) {
+        scanFolder(images, inputPath);
+    }
+    return images.size();
+}
+
 
 std::string formatTime(int seconds)
 {
