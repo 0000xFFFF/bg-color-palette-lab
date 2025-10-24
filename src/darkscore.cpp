@@ -230,8 +230,9 @@ int main(int argc, char* argv[])
 
         for (const auto& result : results) {
             if (result.score >= 0) {
-                std::cout << result.filePath << " => " << result.score << std::endl;
-                out << std::filesystem::absolute(result.filePath) << CSV_DELIM << result.score << "\n";
+                std::string abs = std::filesystem::canonical(result.filePath);
+                std::cout << abs << " => " << result.score << std::endl;
+                out << abs << CSV_DELIM << result.score << "\n";
             }
         }
 
