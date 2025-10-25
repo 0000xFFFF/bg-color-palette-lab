@@ -144,6 +144,16 @@ Optional arguments:
 
 ```
 
+##### Notes:
+
+```bash
+# You can change wallpaper on enter
+# or sending a signal (useful when running as a daemon (-d)) with:
+pkill -RTMIN+10 -f wpu-darkscore-select
+```
+
+##### also check out these useful [scripts](https://github.com/0000xFFFF/wallpaper-utils/tree/master/scripts)
+
 </details>
 
 ---
