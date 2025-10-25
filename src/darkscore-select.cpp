@@ -74,7 +74,7 @@ void daemonize()
     close(STDIN_FILENO);
 
     // Redirect stdout and stderr to log file using file descriptors
-    int logfd = open("/tmp/darkscore-select.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    int logfd = open("/tmp/darkscore-select.log", O_WRONLY | O_CREAT, 0644);
     if (logfd != -1) {
         dup2(logfd, STDOUT_FILENO);
         dup2(logfd, STDERR_FILENO);
@@ -469,7 +469,7 @@ int main(int argc, char* argv[])
             std::cout << "Selected wallpaper: " << chosen.filePath << "\n";
             std::cout << "Darkness score: " << chosen.score << std::endl;
 
-            executeWallpaperChange(execStr, chosen, hour);
+            executeWallpaperChange(execStr, chosen, hour, chosenBucket);
         }
         catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
