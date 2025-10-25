@@ -82,12 +82,12 @@ int getDarknessBucket(double score)
 
 int getTargetBucketForHour(int hour)
 {
-    if (hour >= 20) return 0; // very dark
-    if (hour >= 19) return 1; // dark
-    if (hour >= 18) return 2; // mid-dark
-    if (hour >= 17) return 3; // mid-bright
-    if (hour >= 16) return 4; // bright
-    if (hour >= 12) return 2; // very bright
+    if (hour >= 21) return 0; // very dark
+    if (hour >= 20) return 1; // dark
+    if (hour >= 19) return 2; // mid-dark
+    if (hour >= 18) return 3; // mid-bright
+    if (hour >= 17) return 4; // bright
+    if (hour >= 12) return 5; // very bright
     if (hour >= 9) return 2;  // bright
     if (hour >= 7) return 2;  // mid-dark
     if (hour >= 5) return 1;  // dark
