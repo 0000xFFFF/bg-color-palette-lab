@@ -131,17 +131,38 @@ Optional arguments:
 ```console
 Usage: darkscore-select [--help] [--version] --input file.csv [--exec command] [--daemon] [--loop] [--sleep sleep_ms]
 
-select wallpaper from csv file based on time of day and darkness score (night = dark, day = bright)
+select wallpaper from csv file based on time of day and darkness score
+
+    (night time = dark wallpaper, day time = bright wallper)
+
+    buckets:
+        1)    score > 0.9    very dark
+        2)    score > 0.8    dark
+        3)    score > 0.6    mid-dark
+        4)    score > 0.4    mid-bright
+        5)    score > 0.2    bright
+        6)    score > 0.0    very bright
+
+    choose bucket:
+        (hour >= 21)    =>    very dark
+        (hour >= 20)    =>    dark
+        (hour >= 19)    =>    mid-dark
+        (hour >= 18)    =>    mid-bright
+        (hour >= 17)    =>    bright
+        (hour >= 12)    =>    very bright
+        (hour >=  9)    =>    bright
+        (hour >=  7)    =>    mid-dark
+        (hour >=  5)    =>    dark
+        (hour >=  0)    =>    very dark
 
 Optional arguments:
-  -h, --help            shows help message and exits
-  -v, --version         prints version information and exits
-  -i, --input file.csv  csv file that was made by wpu-darkscore [required]
+  -h, --help            shows help message and exits 
+  -v, --version         prints version information and exits 
+  -i, --input file.csv  csv file that was made by bgcpl-darkscore [required]
   -e, --exec            pass image to a command and execute (e.g. plasma-apply-wallpaperimage) [nargs=0..1] [default: ""]
-  -d, --daemon          run daemon in the background
-  -l, --loop            loop logic for setting wallpapers
+  -d, --daemon          run daemon in the background 
+  -l, --loop            loop logic for setting wallpapers 
   -s, --sleep           sleep ms for loop [nargs=0..1] [default: 60000]
-
 ```
 
 ##### Notes:

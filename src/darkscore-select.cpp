@@ -293,8 +293,7 @@ int main(int argc, char* argv[])
         (hour >=  9)    =>    bright
         (hour >=  7)    =>    mid-dark
         (hour >=  5)    =>    dark
-        (hour >=  0)    =>    very dark
-    )");
+        (hour >=  0)    =>    very dark)");
 
     program.add_argument("-i", "--input")
         .required()
