@@ -1,10 +1,10 @@
 # wallpaper-utils
 
 - [TLDR](#tldr)
-- [group wallpapers](#wpu-grouper) by [color groups](#color-groups)
-- [validate images](#wpu-validator)
-- [change wallpaper based on time of day (night time = dark image, day time = bright image](#wpu-darkscore-wpu-darkscore-select)
-- [create color palette from image](#wpu-palette)
+- [Group Wallpapers](#group-wallpapers) by [Color Groups](#color-groups)
+- [Validate Images](#validate-images)
+- [Change Wallpaper Based on Time of Day (Night Time = Dark Image, Day Time = Bright Image)](#change-wallpapers-based-on-time-of-day)
+- [Create Color Palette From Image](#create-color-palette-from-image)
 
 ## Requirements
 
@@ -41,7 +41,11 @@ sudo make install
 
 ---
 
-## wpu-grouper
+## Group Wallpapers
+
+```console
+wpu-grouper --help
+```
 
 ### Color Groups
 
@@ -83,9 +87,9 @@ Optional (detailed usage):
   -a, --algorithm  which algorithm to use when grouping images (KMeans = 0, KMeansOptimized = 1, Histogram = 2 [nargs=0..1] [default: 0]
 ```
 
-## </details>
+</details>
 
-## wpu-darkscore wpu-darkscore-select
+## Change Wallpapers Based on Time of Day
 
 ### Workflow
 
@@ -144,7 +148,7 @@ Optional arguments:
 
 ---
 
-## wpu-validator
+## Validate Images
 
 ### Examples
 
@@ -173,7 +177,7 @@ Optional arguments:
 
 ---
 
-## wpu-palette
+## Create Color Palette From Image
 
 ```console
 ./wpu-palette <file.png/jpg/...> [num colors]
