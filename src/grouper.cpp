@@ -1,14 +1,14 @@
-#include <argparse/argparse.hpp>
-#include <csignal>
-#include <opencv2/opencv.hpp>
 #include <algorithm>
+#include <argparse/argparse.hpp>
 #include <atomic>
+#include <csignal>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <opencv2/opencv.hpp>
 #include <string>
 #include <thread>
 #include <vector>
@@ -658,6 +658,10 @@ int main(int argc, char* argv[])
     options_required.add_argument("-i", "--input")
         .help("input folder")
         .required();
+    program.add_argument("-r", "--report")
+        .help("save report in a txt file")
+        .default_value("")
+        .metavar("report.txt");
     auto& options_optional = program.add_group("Optional");
     options_optional.add_argument("-o", "--output")
         .help("output folder (if not speicifed files won't be moved/copied, must specify --copy or --move to do action)");
@@ -685,47 +689,49 @@ int main(int argc, char* argv[])
 
     try {
         program.parse_args(argc, argv);
-
-        ACTION action = NONE;
-        if (program.get<bool>("copy")) { action = COPY; }
-        else if (program.get<bool>("move")) {
-            action = MOVE;
-        }
-
-        ALGORITHM algorithm = KMEANS;
-        switch (program.get<int>("algorithm")) {
-            case 0: algorithm = KMEANS; break;
-            case 1: algorithm = KMEANSOPT; break;
-            case 2: algorithm = HISTOGRAM; break;
-        }
-
-        std::string inputFolder = program.get<std::string>("input");
-
-        auto start_time = std::chrono::steady_clock::now();
-        processImages(inputFolder, algorithm);
-        auto now = std::chrono::steady_clock::now();
-        std::chrono::duration<double> elapsed_time = now - start_time;
-        std::cout << "\n\nProcessing took: " << elapsed_time.count() << std::endl;
-
-        // Show summary
-        printSummary();
-
-        if (action != NONE) {
-            // Create grouped folders
-            std::string outputFolder = program.get<std::string>("output");
-            createGroupFoldersMoveOrCopyFiles(outputFolder, action);
-        }
-
-        // Generate detailed report
-        generateReport("wallpaper_grouping_report.txt");
-
-        std::cout << "\nDone!" << std::endl;
-        Cursor::show();
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
+
+    ACTION action = NONE;
+    if (program.get<bool>("copy")) { action = COPY; }
+    else if (program.get<bool>("move")) {
+        action = MOVE;
+    }
+
+    ALGORITHM algorithm = KMEANS;
+    switch (program.get<int>("algorithm")) {
+        case 0: algorithm = KMEANS; break;
+        case 1: algorithm = KMEANSOPT; break;
+        case 2: algorithm = HISTOGRAM; break;
+    }
+
+    std::string inputFolder = program.get<std::string>("input");
+
+    auto start_time = std::chrono::steady_clock::now();
+    processImages(inputFolder, algorithm);
+    auto now = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed_time = now - start_time;
+    std::cout << "\n\nProcessing took: " << elapsed_time.count() << std::endl;
+
+    // Show summary
+    printSummary();
+
+    if (action != NONE) {
+        // Create grouped folders
+        std::string outputFolder = program.get<std::string>("output");
+        createGroupFoldersMoveOrCopyFiles(outputFolder, action);
+    }
+
+    std::string reportFile = program.get<std::string>("report");
+    if (!reportFile.empty()) {
+        generateReport(reportFile);
+    }
+
+    std::cout << "\nDone!" << std::endl;
+    Cursor::show();
 
     return 0;
 }
