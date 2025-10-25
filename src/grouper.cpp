@@ -382,6 +382,8 @@ size_t scanFolderMakeStructs(const std::string& folderPath)
 
 void processImages(const std::string& inputFolder, ALGORITHM algorithm)
 {
+    auto startTime = std::chrono::high_resolution_clock::now();
+
     size_t count = scanFolderMakeStructs(inputFolder);
     if (!(count > 0)) { exit(1); }
 
@@ -519,6 +521,13 @@ void processImages(const std::string& inputFolder, ALGORITHM algorithm)
     // stop print thread
     running = false;
     printThread.join();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+    std::cout << "\nCompleted in " << duration.count() << "ms" << std::endl;
+    std::cout << "Average: " << std::fixed << std::setprecision(2)
+              << (double)duration.count() / images.size() << "ms per image" << std::endl;
 }
 
 void createGroupFoldersMoveOrCopyFiles(const std::string& outputPath, ACTION action)
