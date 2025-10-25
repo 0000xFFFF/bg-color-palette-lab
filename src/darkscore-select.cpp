@@ -271,7 +271,31 @@ constexpr int LOOP_SLEEP_MS = 1000 * 60 * 1; // 1 min
 int main(int argc, char* argv[])
 {
     argparse::ArgumentParser program("darkscore-select", VERSION);
-    program.add_description("select wallpaper from csv file based on time of day and darkness score (night = dark, day = bright)");
+    program.add_description(R"(select wallpaper from csv file based on time of day and darkness score
+
+    (night time = dark wallpaper, day time = bright wallper)
+
+    buckets:
+        1)    score > 0.9    very dark
+        2)    score > 0.8    dark
+        3)    score > 0.6    mid-dark
+        4)    score > 0.4    mid-bright
+        5)    score > 0.2    bright
+        6)    score > 0.0    very bright
+
+    choose bucket:
+        (hour >= 21)    =>    very dark
+        (hour >= 20)    =>    dark
+        (hour >= 19)    =>    mid-dark
+        (hour >= 18)    =>    mid-bright
+        (hour >= 17)    =>    bright
+        (hour >= 12)    =>    very bright
+        (hour >=  9)    =>    bright
+        (hour >=  7)    =>    mid-dark
+        (hour >=  5)    =>    dark
+        (hour >=  0)    =>    very dark
+    )");
+
     program.add_argument("-i", "--input")
         .required()
         .help("csv file that was made by bgcpl-darkscore")
