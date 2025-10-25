@@ -359,7 +359,7 @@ int main(int argc, char* argv[])
     sa.sa_flags = 0;
     sigaction(SIGRTMIN + 10, &sa, nullptr);
     std::cout << "Running. PID: " << getpid() << "\n";
-    std::cout << "Send signal with: pkill -RTMIN+10 darkscore-select\n";
+    std::cout << "Send signal with: pkill -RTMIN+10 -f darkscore-select\n";
 
     // Daemonize if requested
     if (isDaemon) {
