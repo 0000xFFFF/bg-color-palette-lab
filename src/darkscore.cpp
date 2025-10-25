@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
     std::string outputPath = program.get<std::string>("--output");
     if (!outputPath.empty()) {
         bool fileExists = std::ifstream(outputPath).good();
-        std::ofstream out(outputPath, std::ios::app);
+        std::ofstream out(outputPath);
         if (!fileExists) {
             out << "image,darkness\n";
         }
