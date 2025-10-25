@@ -177,7 +177,7 @@ void processImages(std::vector<std::string>& images)
     auto endTime = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
-    std::cout << "\nValidation completed in " << duration.count() << "ms" << std::endl;
+    std::cout << "\nCompleted in " << duration.count() << "ms" << std::endl;
     std::cout << "Average: " << std::fixed << std::setprecision(2)
               << (double)duration.count() / images.size() << "ms per image" << std::endl;
     std::cout << "Total files processed: " << results.size() << std::endl;
