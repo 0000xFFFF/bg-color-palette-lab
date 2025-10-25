@@ -1,7 +1,9 @@
 #include "globals.hpp"
 #include <algorithm>
 #include <argparse/argparse.hpp>
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdlib>
 #include <ctime>
 #include <fcntl.h>
@@ -18,6 +20,20 @@
 #include <vector>
 
 #include "utils.hpp"
+
+// Global flag to interrupt sleep
+std::atomic<bool> g_sleeping{true};
+std::mutex g_sleep_mutex;
+std::condition_variable g_sleep_cv;
+
+void handle_signal(int sig)
+{
+    if (sig == SIGRTMIN + 10) {
+        std::cout << "Received SIGRTMIN+10! Triggering wallpaper change...\n";
+        g_sleeping = false;
+        g_sleep_cv.notify_all();
+    }
+}
 
 void daemonize()
 {
@@ -235,27 +251,19 @@ bool checkKeyPress()
     return n > 0;
 }
 
-// Sleep with ability to skip on keypress
-void interruptibleSleep(int sleepMs)
+// Sleep with ability to skip on keypress or signal
+void interruptibleSleep(int sleepMs, bool checkKeys = true)
 {
-    const int checkIntervalMs = 100; // Check for input every 100ms
-    int elapsed = 0;
-
-    std::cout << "Sleeping for " << (sleepMs / 1000) << "s (press any key to skip)..." << std::endl;
-
-    while (elapsed < sleepMs) {
-        if (checkKeyPress()) {
-            std::cout << "Sleep interrupted by user!" << std::endl;
-            // Clear any remaining input
-            char c;
-            while (read(STDIN_FILENO, &c, 1) > 0);
-            return;
-        }
-
-        int sleepTime = std::min(checkIntervalMs, sleepMs - elapsed);
-        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
-        elapsed += sleepTime;
+    if (checkKeys) {
+        std::cout << "Sleeping for " << (sleepMs / 1000) << "s (press any key or send signal to skip)..." << std::endl;
     }
+
+    {
+        std::unique_lock<std::mutex> lock(g_sleep_mutex);
+        g_sleep_cv.wait_for(lock, std::chrono::milliseconds(sleepMs), [&] { return !g_sleeping; });
+    }
+
+    g_sleeping = true;
 }
 
 constexpr int LOOP_SLEEP_MS = 1000 * 60 * 1; // 1 min
@@ -313,6 +321,15 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Register handler for SIGRTMIN+10
+    struct sigaction sa{};
+    sa.sa_handler = handle_signal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGRTMIN + 10, &sa, nullptr);
+    std::cout << "Running. PID: " << getpid() << "\n";
+    std::cout << "Send signal with: pkill -RTMIN+10 darkscore-select\n";
+
     // Daemonize if requested
     if (isDaemon) {
         daemonize();
@@ -360,13 +377,8 @@ int main(int argc, char* argv[])
                 auto chosen = iterator.getNext(targetBucket);
                 executeWallpaperChange(execStr, chosen, hour);
 
-                // Sleep with ability to skip (only in loop mode, not daemon)
-                if (isLoop && !isDaemon) {
-                    interruptibleSleep(sleepMs);
-                }
-                else {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
-                }
+                // Sleep with interruption support
+                interruptibleSleep(sleepMs, isLoop && !isDaemon);
             }
             catch (const std::exception& e) {
                 std::cerr << "Error in loop: " << e.what() << std::endl;
