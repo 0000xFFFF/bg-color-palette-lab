@@ -22,7 +22,8 @@
 #include "utils.hpp"
 
 // Global flag to interrupt sleep
-std::atomic<bool> g_sleeping{true};
+std::atomic<bool> g_running{true};
+std::atomic<bool> g_sleeping{false};
 std::mutex g_sleep_mutex;
 std::condition_variable g_sleep_cv;
 
@@ -258,12 +259,11 @@ void interruptibleSleep(int sleepMs, bool checkKeys = true)
         std::cout << "Sleeping for " << (sleepMs / 1000) << "s (press any key or send signal to skip)..." << std::endl;
     }
 
+    g_sleeping = true;
     {
         std::unique_lock<std::mutex> lock(g_sleep_mutex);
         g_sleep_cv.wait_for(lock, std::chrono::milliseconds(sleepMs), [&] { return !g_sleeping; });
     }
-
-    g_sleeping = true;
 }
 
 constexpr int LOOP_SLEEP_MS = 1000 * 60 * 1; // 1 min
@@ -361,35 +361,41 @@ int main(int argc, char* argv[])
         // Create bucket iterator for sequential iteration
         BucketIterator iterator(buckets);
 
-        // Enable non-blocking input for loop mode (but not daemon mode)
-        if (isLoop && !isDaemon) {
-            setNonBlockingInput(true);
-        }
+        std::thread logicThread([&]() {
+            while (g_running) {
+                try {
+                    std::time_t now = std::time(nullptr);
+                    std::tm* local = std::localtime(&now);
+                    int hour = local->tm_hour;
+                    int targetBucket = getTargetBucketForHour(hour);
 
-        // Loop mode: continuously select and change wallpaper
-        while (true) {
-            try {
-                std::time_t now = std::time(nullptr);
-                std::tm* local = std::localtime(&now);
-                int hour = local->tm_hour;
-                int targetBucket = getTargetBucketForHour(hour);
+                    auto chosen = iterator.getNext(targetBucket);
+                    executeWallpaperChange(execStr, chosen, hour);
 
-                auto chosen = iterator.getNext(targetBucket);
-                executeWallpaperChange(execStr, chosen, hour);
-
-                // Sleep with interruption support
-                interruptibleSleep(sleepMs, isLoop && !isDaemon);
+                    // Sleep with interruption support
+                    interruptibleSleep(sleepMs, isLoop && !isDaemon);
+                }
+                catch (const std::exception& e) {
+                    std::cerr << "Error in loop: " << e.what() << std::endl;
+                    std::this_thread::sleep_for(std::chrono::seconds(60)); // Wait before retrying
+                }
             }
-            catch (const std::exception& e) {
-                std::cerr << "Error in loop: " << e.what() << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(60)); // Wait before retrying
-            }
-        }
+        });
 
-        // Restore terminal settings (won't reach here normally)
-        if (isLoop && !isDaemon) {
-            setNonBlockingInput(false);
+        while (g_running) {
+
+            char c;
+            if (checkKeyPress(&c)) {
+                g_sleeping = false;
+                g_sleep_cv.notify_all();
+            }
+
+            if (c == 'q') { break; }
         }
+        g_running = false;
+        g_sleeping = false;
+        g_sleep_cv.notify_all();
+        logicThread.join();
     }
     else {
         // Single execution mode - just pick randomly for one-time use

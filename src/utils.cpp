@@ -133,6 +133,12 @@ void setNonBlockingInput(bool enable)
     }
 }
 
+bool checkKeyPress(char* c)
+{
+    int n = read(STDIN_FILENO, c, 1);
+    return n > 0;
+}
+
 std::string trim(const std::string& str)
 {
     const std::string whitespace = " \n\r\t\f\v";
