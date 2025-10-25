@@ -231,11 +231,12 @@ void printBucketInfo(const std::vector<std::vector<DarkScoreResult>>& buckets)
     }
 }
 
-void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& chosen, int hour)
+void executeWallpaperChange(const std::string& execStr, const DarkScoreResult& chosen, int hour, int bucket)
 {
     std::time_t now = std::time(nullptr);
     std::cout << "[" << trim(std::string(std::ctime(&now))) << "] ";
     std::cout << "Hour: " << hour
+              << " | Bucket: " << bucket
               << " | Selected: " << chosen.filePath
               << " | Score: " << chosen.score << std::endl;
 
@@ -275,15 +276,17 @@ int main(int argc, char* argv[])
 
     (night time = dark wallpaper, day time = bright wallper)
 
-    buckets:
-        1)    score > 0.9    very dark
-        2)    score > 0.8    dark
-        3)    score > 0.6    mid-dark
-        4)    score > 0.4    mid-bright
-        5)    score > 0.2    bright
-        6)    score > 0.0    very bright
+    wallpapers are shuffled into 6 buckets:
 
-    choose bucket:
+    buckets(6):
+        darkness score > 0.9    very dark
+        darkness score > 0.8    dark
+        darkness score > 0.6    mid-dark
+        darkness score > 0.4    mid-bright
+        darkness score > 0.2    bright
+        darkness score > 0.0    very bright
+
+    bucket is chosen by current hour:
         (hour >= 21)    =>    very dark
         (hour >= 20)    =>    dark
         (hour >= 19)    =>    mid-dark
@@ -293,7 +296,12 @@ int main(int argc, char* argv[])
         (hour >=  9)    =>    bright
         (hour >=  7)    =>    mid-dark
         (hour >=  5)    =>    dark
-        (hour >=  0)    =>    very dark)");
+        (hour >=  0)    =>    very dark)
+
+     wallpapers get reshuffled:
+       * after looping through the entire bucket
+       * if chosen bucket changes (hour changes)
+    )");
 
     program.add_argument("-i", "--input")
         .required()
@@ -393,7 +401,7 @@ int main(int argc, char* argv[])
                     int targetBucket = getTargetBucketForHour(hour);
 
                     auto chosen = iterator.getNext(targetBucket);
-                    executeWallpaperChange(execStr, chosen, hour);
+                    executeWallpaperChange(execStr, chosen, hour, targetBucket);
 
                     // Sleep with interruption support
                     interruptibleSleep(sleepMs, isLoop && !isDaemon);
