@@ -710,11 +710,7 @@ int main(int argc, char* argv[])
 
     std::string inputFolder = program.get<std::string>("input");
 
-    auto start_time = std::chrono::steady_clock::now();
     processImages(inputFolder, algorithm);
-    auto now = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed_time = now - start_time;
-    std::cout << "\n\nProcessing took: " << elapsed_time.count() << std::endl;
 
     // Show summary
     printSummary();
