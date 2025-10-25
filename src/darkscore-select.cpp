@@ -301,7 +301,11 @@ int main(int argc, char* argv[])
      wallpapers get reshuffled:
        * after looping through the entire bucket
        * if chosen bucket changes (hour changes)
-    )");
+
+    notes:
+        * You can change wallpaper on enter
+        * or by sending a signal (useful when running as a daemon (-d)) with:
+        pkill -RTMIN+10 -f wpu-darkscore-select)");
 
     program.add_argument("-i", "--input")
         .required()

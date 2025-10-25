@@ -135,15 +135,17 @@ select wallpaper from csv file based on time of day and darkness score
 
     (night time = dark wallpaper, day time = bright wallper)
 
-    buckets:
-        1)    score > 0.9    very dark
-        2)    score > 0.8    dark
-        3)    score > 0.6    mid-dark
-        4)    score > 0.4    mid-bright
-        5)    score > 0.2    bright
-        6)    score > 0.0    very bright
+    wallpapers are shuffled into 6 buckets:
 
-    choose bucket:
+    buckets(6):
+        darkness score > 0.9    very dark
+        darkness score > 0.8    dark
+        darkness score > 0.6    mid-dark
+        darkness score > 0.4    mid-bright
+        darkness score > 0.2    bright
+        darkness score > 0.0    very bright
+
+    bucket is chosen by current hour:
         (hour >= 21)    =>    very dark
         (hour >= 20)    =>    dark
         (hour >= 19)    =>    mid-dark
@@ -153,7 +155,16 @@ select wallpaper from csv file based on time of day and darkness score
         (hour >=  9)    =>    bright
         (hour >=  7)    =>    mid-dark
         (hour >=  5)    =>    dark
-        (hour >=  0)    =>    very dark
+        (hour >=  0)    =>    very dark)
+
+     wallpapers get reshuffled:
+       * after looping through the entire bucket
+       * if chosen bucket changes (hour changes)
+
+    notes:
+        * You can change wallpaper on enter
+        * or by sending a signal (useful when running as a daemon (-d)) with:
+        pkill -RTMIN+10 -f wpu-darkscore-select
 
 Optional arguments:
   -h, --help            shows help message and exits 
@@ -163,14 +174,6 @@ Optional arguments:
   -d, --daemon          run daemon in the background 
   -l, --loop            loop logic for setting wallpapers 
   -s, --sleep           sleep ms for loop [nargs=0..1] [default: 60000]
-```
-
-##### Notes:
-
-```bash
-# You can change wallpaper on enter
-# or sending a signal (useful when running as a daemon (-d)) with:
-pkill -RTMIN+10 -f wpu-darkscore-select
 ```
 
 ##### also check out these useful [scripts](https://github.com/0000xFFFF/wallpaper-utils/tree/master/scripts)
